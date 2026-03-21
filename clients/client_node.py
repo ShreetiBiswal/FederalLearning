@@ -29,6 +29,7 @@ current_round = 1
 @sio.event
 def connect():
     print(f"\n[🔌] Successfully connected to Node.js Aggregator as {sio.get_sid()}")
+    sio.emit('join_as_hospital')
 
 @sio.on('start_training_round')
 def on_start_training(data):
@@ -92,10 +93,13 @@ def main():
     
     print(f"========== 🏥 HOSPITAL {args.hospital_id} [{args.algo.upper()}] NODE STARTING ==========")
 
+    #To support low power gareeb system
+    batch_size = 8
+
     # A. Load the local database
    # A. Load the local database
-    train_loader, val_loader, in_channels = get_dummy_loaders(hospital_id=args.hospital_id)
-   # train_loader,in_channels = get_local_hospital_loader(hospital_id=args.hospital_id)
+    # train_loader, val_loader, in_channels = get_dummy_loaders(hospital_id=args.hospital_id)
+    train_loader,in_channels = get_local_hospital_loader(hospital_id=args.hospital_id, batch_size=batch_size)
     dataset_size = len(train_loader.dataset)
     num_classes = 9
 
@@ -130,6 +134,12 @@ def main():
         # 1. Apply Master Weights & Evaluate for the Graph!
         if global_model_weights is not None:
             model.load_state_dict(global_model_weights)
+            # --- ADD THIS FOR 8GB RAM ---
+            import gc
+            del global_model_weights # Remove the dictionary to free RAM
+            global_model_weights = None 
+            gc.collect() 
+            # ----------------------------
             print("   [⚙️] Global model weights injected into local CNN.")
             
             # Evaluate on the LOCAL TRAINING DATA as requested
