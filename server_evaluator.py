@@ -3,7 +3,9 @@ import torch
 import torch.nn as nn
 import socketio
 import os
+import sys
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'clients')))
 # Import your shared architecture and utilities
 from shared.cnn_model import GenericClientModel
 from shared.tensor_utils import json_ready_to_state_dict
@@ -15,7 +17,8 @@ from clients.data_loader import get_global_val_loader
 sio = socketio.Client()
 model = None
 val_loader = None
-csv_filename = ""
+csv_filename = "true_global_metrics.csv" # ALWAYS append to this one file
+current_algo = "fedavg" # Will be updated by argparse
 
 # --- The Evaluation Engine ---
 def evaluate_master_model(current_round, json_weights):
@@ -47,14 +50,15 @@ def evaluate_master_model(current_round, json_weights):
     
     print(f"   📊 True Global Accuracy: {accuracy*100:.2f}% | Loss: {avg_loss:.4f}")
     
-    # 4. Log the True Metrics to a CSV
+    # 4. Log the True Metrics to the unified CSV (NOW INCLUDES ALGO)
     with open(csv_filename, mode='a', encoding='utf-8') as f:
-        f.write(f"{current_round},{accuracy},{avg_loss}\n")
+        f.write(f"{current_algo},{current_round},{accuracy},{avg_loss}\n")
 
 # --- WebSocket Listeners ---
 @sio.event
 def connect():
     print(f"\n[🔌] Evaluator Node Connected to Aggregator!")
+    sio.emit('register_evaluator')
 
 @sio.on('apply_global_update')
 def on_apply_update(data):
@@ -68,11 +72,14 @@ def on_training_finished():
 
 # --- Main Execution ---
 def main():
-    global model, val_loader, csv_filename
+    global model, val_loader, csv_filename, current_algo
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--algo', type=str, default='fedavg', help="Algorithm name for the CSV file naming")
     args = parser.parse_args()
+
+    # Store the algo globally so the evaluator function can use it
+    current_algo = args.algo 
 
     print("========== 🌍 GLOBAL EVALUATOR NODE STARTING ==========")
 
@@ -81,11 +88,10 @@ def main():
     in_channels = 3 
     num_classes = 9
 
-    # 2. Setup the "True" Metrics CSV
-    csv_filename = f"true_global_{args.algo}_metrics.csv"
+    # 2. Setup the "True" Metrics CSV (Creates it with the new header if missing)
     if not os.path.exists(csv_filename):
         with open(csv_filename, mode='w', encoding='utf-8') as f:
-            f.write("Round,Accuracy,Loss\n")
+            f.write("Algorithm,Round,Accuracy,Loss\n")
 
     # 3. Initialize the Empty Model
     model = GenericClientModel(in_channels=in_channels, num_classes=num_classes)

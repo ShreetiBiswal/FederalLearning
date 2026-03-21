@@ -17,7 +17,8 @@ const io = new Server(server, {
 
 const TARGET_HOSPITALS = 4;
 const MAX_ROUNDS = 50;            
-let connectedClients = [];
+let connectedHospitals = [];
+let evaluatorId = null;
 let receivedUpdates = [];
 let currentRound = 1;
 let isTrainingActive = false;
@@ -29,10 +30,29 @@ if (!fs.existsSync(CSV_FILE)) {
 }
 
 io.on('connection', (socket) => {
-    console.log(`[+] Hospital Connected: ${socket.id}`);
-    connectedClients.push(socket.id);
+    console.log(`[+] New connection: ${socket.id}`);
 
-    if (connectedClients.length === TARGET_HOSPITALS && !isTrainingActive) {
+    socket.on('register_evaluator', () => {
+        evaluatorId = socket.id;
+        console.log(`[⚖️] Evaluator Registered: ${socket.id}`);
+    });
+
+    // Hospital joins and WE COUNT IT
+    socket.on('join_as_hospital', () => {
+        if (!connectedHospitals.includes(socket.id)) {
+            connectedHospitals.push(socket.id);
+            console.log(`[🏥] Hospital Registered: ${socket.id} (${connectedHospitals.length}/${TARGET_HOSPITALS})`);
+        }
+
+        // ONLY start if we have exactly 4 HOSPITALS
+        if (connectedHospitals.length === TARGET_HOSPITALS && !isTrainingActive) {
+            console.log(`\n🚀 All ${TARGET_HOSPITALS} hospitals ready. Starting Round ${currentRound}...`);
+            isTrainingActive = true;
+            io.emit('start_training_round', { round: currentRound });
+        }
+    });
+
+    if (connectedHospitals.length === TARGET_HOSPITALS && !isTrainingActive) {
         console.log(`\n🚀 All ${TARGET_HOSPITALS} hospitals connected. Starting FL Round ${currentRound}...`);
         isTrainingActive = true;
         io.emit('start_training_round', { round: currentRound });
@@ -40,6 +60,11 @@ io.on('connection', (socket) => {
 
     socket.on('upload_weights', (payload) => {
         // Validate payload structure
+        if (!connectedHospitals.includes(socket.id)) {
+            console.log(`[⚠️] Ignoring weights from unauthorized/evaluator socket: ${socket.id}`);
+            return;
+        }
+
         if (!payload || !payload.algo || typeof payload.dataset_size !== 'number') {
             console.error(`[!] ERROR: Malformed payload received from ${socket.id}. Rejecting.`);
             socket.emit('server_error', { message: 'Invalid payload structure.' });
@@ -115,6 +140,9 @@ io.on('connection', (socket) => {
                     io.emit('apply_global_update', { global_weights: globalModelUpdates, round: currentRound });
                 } else {
                     console.log('\n✅ Federated Learning Training Complete!');
+                    const FINAL_MODEL_PATH = './final_master_model.json';
+                    fs.writeFileSync(FINAL_MODEL_PATH, JSON.stringify(globalModelUpdates));
+                    console.log(`💾 Final Master Model saved to: ${FINAL_MODEL_PATH}`);
                     isTrainingActive = false;
                     io.emit('training_finished');
                 }
@@ -127,8 +155,12 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        console.log(`[-] Hospital Disconnected: ${socket.id}`);
-        connectedClients = connectedClients.filter(id => id !== socket.id);
+        console.log(`[-] Disconnected: ${socket.id}`);
+        connectedHospitals = connectedHospitals.filter(id => id !== socket.id);
+        
+        if (socket.id === evaluatorId) {
+            evaluatorId = null;
+        }
         
         if (isTrainingActive) {
             console.log(`[!] WARNING: Hospital dropped during active training. Waiting for reconnection to resume Round ${currentRound}.`);
