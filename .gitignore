@@ -1,0 +1,35 @@
+# --- Data & Databases (Crucial) ---
+# We don't track the actual medical images or generated splits
+*.npy
+*.npz
+*.sqlite3
+clients/hospital_*_data/
+clients/global_test_data/
+
+# --- Python Environment ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.env
+
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# --- Metrics & Results (Optional) ---
+# Keep these if you want to track your progress, 
+# but ignore them if you want a clean repo for every run.
+*.csv
+*.png
+GraphPlotter/plots/
+
+# --- IDE & System ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

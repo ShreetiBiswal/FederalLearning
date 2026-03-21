@@ -1,0 +1,15 @@
+# Machine Learning & Tensors
+torch
+torchvision
+
+# Medical Dataset
+medmnist
+
+# Data Mining (Chi-Square & SMOTE)
+scipy
+imbalanced-learn
+numpy
+matplotlib
+
+# Networking (WebSocket Client)
+python-socketio[client]
