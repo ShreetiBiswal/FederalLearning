@@ -17,39 +17,37 @@ def format_images_for_pytorch(raw_images):
     return (tensor_x - 0.5) / 0.5
 
 # --- 1. The Local (Private) Data Loader ---
-def get_local_hospital_loader(hospital_id, num_classes=9, batch_size=16):
-    """ Reads isolated Train files. Applies SMOTE ONLY to Train. """
+def get_local_hospital_loader(hospital_id, num_classes=9, batch_size=8): # Default to 8 for 8GB RAM
     print(f"\n📂 [Data Loader] Accessing private database for Hospital {hospital_id}...")
-    
     folder_path = f"clients/hospital_{hospital_id}_data"
     
-    try:
-        # Notice we ONLY load the training data now!
-        raw_train_imgs = np.load(os.path.join(folder_path, "train_images.npy"))
-        raw_train_lbls = np.load(os.path.join(folder_path, "train_labels.npy"))
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Missing data for Hospital {hospital_id}. Run setup_local_dbs.py first!")
+    # 1. Load raw integers (Uses very little RAM)
+    raw_train_imgs = np.load(os.path.join(folder_path, "train_images.npy"))
+    raw_train_lbls = np.load(os.path.join(folder_path, "train_labels.npy"))
 
-    # Balance ONLY the Training Data
+    # 2. Balance the RAW images FIRST
+    # SMOTE handles 0-255 integers perfectly fine.
     print(f"   📥 Balancing {len(raw_train_lbls)} Train records via SMOTE...")
     
-    # We apply the PyTorch normalization before sending it to SMOTE
-    normalized_numpy_imgs = format_images_for_pytorch(raw_train_imgs).numpy()
-    balanced_train_imgs, balanced_train_lbls = detect_and_balance(normalized_numpy_imgs, raw_train_lbls, num_classes)
+    # Flatten for SMOTE inside detect_and_balance
+    balanced_imgs, balanced_lbls = detect_and_balance(raw_train_imgs, raw_train_lbls, num_classes)
     
-    # Convert to Tensors
-    tensor_train_x = torch.tensor(balanced_train_imgs, dtype=torch.float32)
-    tensor_train_y = torch.tensor(balanced_train_lbls, dtype=torch.long)
+    # 3. NOW format and normalize (Only once!)
+    # This helper handles the expansion/transpose and the /255.0 scaling
+    tensor_train_x = format_images_for_pytorch(balanced_imgs)
+    tensor_train_y = torch.tensor(balanced_lbls, dtype=torch.long)
     
-    # Wrap and Load
-    train_loader = DataLoader(TensorDataset(tensor_train_x, tensor_train_y), batch_size=batch_size, shuffle=True)
+    # 4. RAM-Safe DataLoader
+    train_loader = DataLoader(
+        TensorDataset(tensor_train_x, tensor_train_y), 
+        batch_size=batch_size, 
+        shuffle=True,
+        num_workers=0,    # Best for 8GB
+        pin_memory=False  # Saves about 500MB of RAM
+    )
+    
     in_channels = tensor_train_x.shape[1]
-    
-    print(f"   ✅ Local Loader ready! Train: {len(train_loader)} batches")
-    
-    # Returns only 2 things now!
     return train_loader, in_channels
-
 
 # --- 2. The Global (Shared) Validation Loader ---
 def get_global_val_loader(batch_size=16):
