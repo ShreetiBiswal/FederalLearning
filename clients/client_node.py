@@ -104,7 +104,14 @@ def main():
     num_classes = 9
 
     # --- NEW: Setup the Local CSV Logger ---
-    csv_filename = f"hospital_{args.hospital_id}_{args.algo}_metrics.csv"
+    results_dir = os.path.join("results", f"{args.algo}_results")
+    
+    # exist_ok=True ensures it doesn't crash if the folder is already there from Round 1
+    os.makedirs(results_dir, exist_ok=True) 
+
+    # Save the file INSIDE the new folder
+    csv_filename = os.path.join(results_dir, f"hospital_{args.hospital_id}_metrics.csv")
+    
     if not os.path.exists(csv_filename):
         with open(csv_filename, mode='w', encoding='utf-8') as f:
             f.write("Round,Accuracy,Loss\n")
