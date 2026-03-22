@@ -4,7 +4,6 @@ import { Server } from 'socket.io';
 import fs from 'fs';       
 import zlib from 'zlib';   
 
-// --- NEW: Import our segregated math module ---
 import { aggregateWeightedFedAvg } from './aggregators/fedavg.js';
 
 const app = express();
@@ -37,14 +36,12 @@ io.on('connection', (socket) => {
         console.log(`[⚖️] Evaluator Registered: ${socket.id}`);
     });
 
-    // Hospital joins and WE COUNT IT
     socket.on('join_as_hospital', () => {
         if (!connectedHospitals.includes(socket.id)) {
             connectedHospitals.push(socket.id);
             console.log(`[🏥] Hospital Registered: ${socket.id} (${connectedHospitals.length}/${TARGET_HOSPITALS})`);
         }
 
-        // ONLY start if we have exactly 4 HOSPITALS
         if (connectedHospitals.length === TARGET_HOSPITALS && !isTrainingActive) {
             console.log(`\n🚀 All ${TARGET_HOSPITALS} hospitals ready. Starting Round ${currentRound}...`);
             isTrainingActive = true;
@@ -59,7 +56,6 @@ io.on('connection', (socket) => {
     }
 
     socket.on('upload_weights', (payload) => {
-        // Validate payload structure
         if (!connectedHospitals.includes(socket.id)) {
             console.log(`[⚠️] Ignoring weights from unauthorized/evaluator socket: ${socket.id}`);
             return;
@@ -73,11 +69,9 @@ io.on('connection', (socket) => {
 
         let weightsToStore = payload.delta_weights;
 
-        // --- NEW: Dynamic Decompression for CE-FedAvg ---
         if (payload.is_compressed) {
-            console.log(`   [🗜️] Decompressing CE-FedAvg payload from ${socket.id}...`);
+            console.log(`   [🗜️] Decompressing payload from ${socket.id}...`);
             try {
-                // Socket.io sends binary data as a Buffer natively
                 const unzippedBuffer = zlib.inflateSync(payload.delta_weights);
                 weightsToStore = JSON.parse(unzippedBuffer.toString('utf-8'));
             } catch (error) {
@@ -87,20 +81,27 @@ io.on('connection', (socket) => {
             }
         }
 
-        console.log(`[⬇️] Received ${payload.algo.toUpperCase()} weights from ${socket.id} (Size: ${payload.dataset_size})`);
+        // --- NEW: Generate the Dynamic Logging Name ---
+        const isSmoteDisabled = payload.smote_disabled === true;
+        const logAlgoName = isSmoteDisabled ? `${payload.algo}_nosmote` : payload.algo;
+
+        console.log(`[⬇️] Received ${logAlgoName.toUpperCase()} weights from ${socket.id} (Size: ${payload.dataset_size})`);
         
         receivedUpdates.push({
             id: socket.id,
-            algo: payload.algo,
+            algo: payload.algo,        // Base algo for math routing (e.g., 'wsm_ce_fedavg')
+            logAlgo: logAlgoName,      // Custom algo for file saving (e.g., 'wsm_ce_fedavg_nosmote')
             weights: weightsToStore,
             size: payload.dataset_size,
-            metrics: payload.metrics // Storing the local accuracy!
+            metrics: payload.metrics 
         });
 
         if (receivedUpdates.length === TARGET_HOSPITALS) {
             console.log(`\n[⚙️] All updates received. Processing...`);
             
             let currentAlgo = receivedUpdates[0].algo;
+            let currentLogAlgo = receivedUpdates[0].logAlgo; // Use this for files!
+            
             let totalDataSize = receivedUpdates.reduce((sum, update) => sum + update.size, 0);
 
             // --- Calculate and Log Average Accuracy ---
@@ -116,20 +117,20 @@ io.on('connection', (socket) => {
             });
 
             console.log(`   📈 Local Average Accuracy: ${(globalAcc * 100).toFixed(2)}% | Loss: ${globalLoss.toFixed(4)}`);
-            fs.appendFileSync(CSV_FILE, `${currentAlgo},${currentRound},${globalAcc},${globalLoss}\n`);
+            
+            // --- Log to CSV using the dynamic logAlgo ---
+            fs.appendFileSync(CSV_FILE, `${currentLogAlgo},${currentRound},${globalAcc},${globalLoss}\n`);
 
             try {
                 let globalModelUpdates;
 
-                // --- The Algorithm Router ---
-                if (currentAlgo === 'fedavg' || currentAlgo === 'ce_fedavg') {
-                    // Both use the exact same standard weighted averaging on the server side
+                // --- The Algorithm Router (Still uses the base 'currentAlgo') ---
+                if (currentAlgo === 'fedavg' || currentAlgo === 'ce_fedavg' || currentAlgo === 'wsm_ce_fedavg') {
                     globalModelUpdates = aggregateWeightedFedAvg(receivedUpdates);
                 } 
                 else if (currentAlgo === 'scaffold') {
                     console.log(`   [⚠️] Routing to SCAFFOLD Aggregator...`);
-                    // globalModelUpdates = aggregateScaffold(receivedUpdates); // We will build this later!
-                    globalModelUpdates = aggregateWeightedFedAvg(receivedUpdates); // Fallback for now
+                    globalModelUpdates = aggregateWeightedFedAvg(receivedUpdates); 
                 }
 
                 receivedUpdates = [];
@@ -140,9 +141,13 @@ io.on('connection', (socket) => {
                     io.emit('apply_global_update', { global_weights: globalModelUpdates, round: currentRound });
                 } else {
                     console.log('\n✅ Federated Learning Training Complete!');
-                    const FINAL_MODEL_PATH = './final_master_model.json';
+                    
+                    // --- NEW: Save the JSON file dynamically ---
+                    const FINAL_MODEL_PATH = `./final_master_model_${currentLogAlgo}.json`;
+                    
                     fs.writeFileSync(FINAL_MODEL_PATH, JSON.stringify(globalModelUpdates));
                     console.log(`💾 Final Master Model saved to: ${FINAL_MODEL_PATH}`);
+                    
                     isTrainingActive = false;
                     io.emit('training_finished');
                 }

@@ -15,7 +15,7 @@ from data_loader import get_dummy_loaders, get_local_hospital_loader
 
 # --- Import the Modular Algorithms ---
 from trainers.fedavg import run_fedavg
-from trainers.ce_fedavg import run_ce_fedavg
+from trainers.wsm_ce_fedavg import run_wsm_ce_fedAvg
 
 # --- 1. Global State & Synchronization ---
 sio = socketio.Client()
@@ -88,7 +88,9 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--hospital_id', type=int, required=True, help="ID of this hospital (1-4)")
-    parser.add_argument('--algo', type=str, default='fedavg', choices=['fedavg', 'ce_fedavg', 'scaffold'], help="The FL algorithm to use")
+    parser.add_argument('--algo', type=str, default='fedavg', choices=['fedavg', 'wsm_ce_fedavg', 'scaffold'], help="The FL algorithm to use")
+    # --- NEW: Flag to toggle SMOTE ---
+    parser.add_argument('--disable_smote', action='store_true', help="Pass this flag to disable SMOTE balancing locally")
     args = parser.parse_args()
     
     print(f"========== 🏥 HOSPITAL {args.hospital_id} [{args.algo.upper()}] NODE STARTING ==========")
@@ -96,20 +98,21 @@ def main():
     #To support low power gareeb system
     batch_size = 8
 
-    # A. Load the local database
-   # A. Load the local database
-    # train_loader, val_loader, in_channels = get_dummy_loaders(hospital_id=args.hospital_id)
-    train_loader,in_channels = get_local_hospital_loader(hospital_id=args.hospital_id, batch_size=batch_size)
+    # A. Load the local database (Now passing the SMOTE flag)
+    train_loader, in_channels = get_local_hospital_loader(
+        hospital_id=args.hospital_id, 
+        batch_size=batch_size, 
+        use_smote=not args.disable_smote # Inverse logic: if disable_smote is True, use_smote is False
+    )
     dataset_size = len(train_loader.dataset)
     num_classes = 9
 
-    # --- NEW: Setup the Local CSV Logger ---
-    results_dir = os.path.join("results", f"{args.algo}_results")
+    # --- Setup the Local CSV Logger ---
+    folder_suffix = "_nosmote" if args.disable_smote else ""
+    results_dir = os.path.join("results", f"{args.algo}{folder_suffix}_results")
     
-    # exist_ok=True ensures it doesn't crash if the folder is already there from Round 1
     os.makedirs(results_dir, exist_ok=True) 
 
-    # Save the file INSIDE the new folder
     csv_filename = os.path.join(results_dir, f"hospital_{args.hospital_id}_metrics.csv")
     
     if not os.path.exists(csv_filename):
@@ -164,10 +167,8 @@ def main():
         # 2. Dynamic Algorithm Routing
         if args.algo == 'fedavg':
             training_results = run_fedavg(model, train_loader, epochs=2)
-        elif args.algo == 'ce_fedavg':
-            training_results = run_ce_fedavg(model, train_loader, epochs=2)
-        # elif args.algo == 'scaffold':
-        #     training_results = run_scaffold(model, train_loader, epochs=2, local_cv=...)
+        elif args.algo == 'wsm_ce_fedavg':
+            training_results = run_wsm_ce_fedAvg(model, train_loader, epochs=2)
 
         # 3. Serialize and Construct Payload
         print("   [⬆️] Preparing payload...")
@@ -176,7 +177,8 @@ def main():
             "algo": args.algo,
             "dataset_size": dataset_size,
             "metrics": { "accuracy": local_acc, "loss": local_loss },
-            "is_compressed": False 
+            "is_compressed": False,
+            "smote_disabled": args.disable_smote
         }
         
         if "extra_fields" in training_results:
