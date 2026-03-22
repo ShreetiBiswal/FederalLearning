@@ -21,12 +21,15 @@ npm-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# --- Metrics & Results (Optional) ---
+# --- Metrics, Results & Weights ---
 # Keep these if you want to track your progress, 
 # but ignore them if you want a clean repo for every run.
 *.csv
 *.png
 GraphPlotter/plots/
+
+# Ignore aggregated JSON model weights to protect repo size
+final_master_model_*.json
 
 # --- IDE & System ---
 .vscode/
