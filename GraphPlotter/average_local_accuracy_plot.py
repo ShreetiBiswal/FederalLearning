@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 
 def plot_server_metrics():
-    csv_file = '../hospital_1_fedavg_metrics.csv'
+    csv_file = '../server/server_avg_metrics.csv'
     
     # Check if the server has actually generated the file yet
     if not os.path.exists(csv_file):
