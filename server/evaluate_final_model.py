@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import os
 import sys
+import csv # <-- Added for CSV handling
 
 # --- THE BULLETPROOF PATH FIX ---
 # 1. Remember exactly where the 'server' folder is so we can find the JSON later
@@ -82,13 +83,48 @@ def main():
     final_accuracy = correct / total if total > 0 else 0
     final_loss = running_loss / len(test_loader) if len(test_loader) > 0 else 0
 
+    acc_str = f"{final_accuracy * 100:.2f}"
+    loss_str = f"{final_loss:.4f}"
+
     print("\n" + "="*50)
     print(" 🌟 FINAL OFFICIAL METRICS 🌟")
     print("="*50)
     print(f"   Algorithm : {args.algo}")
-    print(f"   Accuracy  : {final_accuracy * 100:.2f}%")
-    print(f"   Loss      : {final_loss:.4f}")
+    print(f"   Accuracy  : {acc_str}%")
+    print(f"   Loss      : {loss_str}")
     print("="*50 + "\n")
+
+    # 7. Save / Update CSV
+    csv_filename = os.path.join(server_dir, 'server_final_accuracy.csv')
+    print(f"[💾] Saving metrics to {csv_filename}...")
+
+    # Dictionary to hold all rows, keyed by algorithm name
+    records = {}
+    fieldnames = ['Algorithm', 'Accuracy(%)', 'Loss']
+
+    # Read existing data if the file exists
+    if os.path.exists(csv_filename):
+        with open(csv_filename, 'r', newline='', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # Store existing rows
+                records[row['Algorithm']] = row
+
+    # Update or add the new record for the current algorithm
+    records[args.algo] = {
+        'Algorithm': args.algo,
+        'Accuracy(%)': acc_str,
+        'Loss': loss_str
+    }
+
+    # Write all records back to the CSV
+    with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for algo_name in sorted(records.keys()): # Optional: sorted alphabetically by algorithm
+            writer.writerow(records[algo_name])
+            
+    print("[✅] CSV successfully updated!")
 
 if __name__ == '__main__':
     main()
