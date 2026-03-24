@@ -4,16 +4,25 @@ import torch
 import torch.nn as nn
 import os
 import sys
-import csv # <-- Added for CSV handling
+import csv
+import numpy as np
+from sklearn.metrics import confusion_matrix
 
 # --- THE BULLETPROOF PATH FIX ---
-# 1. Remember exactly where the 'server' folder is so we can find the JSON later
+# 1. Base server directory
 server_dir = os.path.dirname(os.path.abspath(__file__))
 
-# 2. Find the main 'FRP' root directory (one folder up from 'server')
-root_dir = os.path.abspath(os.path.join(server_dir, '..'))
+# 2. Define Subdirectories based on your new Project Structure
+models_dir = os.path.join(server_dir, 'models')
+cm_dir = os.path.join(server_dir, 'confusionMatrix')
+acc_dir = os.path.join(server_dir, 'serverFinalAccuracy')
 
-# 3. Force Python to treat the 'FRP' root as our current working directory
+# Ensure output directories exist just in case
+os.makedirs(cm_dir, exist_ok=True)
+os.makedirs(acc_dir, exist_ok=True)
+
+# 3. Find the main 'FRP' root directory
+root_dir = os.path.abspath(os.path.join(server_dir, '..'))
 os.chdir(root_dir)
 sys.path.append(root_dir)
 sys.path.append(os.path.join(root_dir, 'clients'))
@@ -25,47 +34,50 @@ from clients.data_loader import get_global_val_loader
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate the final aggregated JSON model.")
-    parser.add_argument('--algo', type=str, required=True, help="The exact algorithm name used to save the file (e.g., wsm_ce_fedavg_nosmote)")
+    parser.add_argument('--algo', type=str, required=True, help="The exact algorithm name (e.g., wsm_ce_fedavg_nosmote)")
+    parser.add_argument('--iid', action='store_true', help="Flag to load/save from IID-specific files")
     args = parser.parse_args()
 
-    print(f"========== 🏆 FINAL MODEL EVALUATOR [{args.algo.upper()}] ==========")
+    # Determine suffix based on the flag
+    suffix = "_iid" if args.iid else ""
+    display_algo = f"{args.algo}{suffix}"
 
-    # 1. Locate the JSON file explicitly in the server folder
-    json_filename = os.path.join(server_dir, f"final_master_model_{args.algo}.json")
+    print(f"========== 🏆 FINAL MODEL EVALUATOR [{display_algo.upper()}] ==========")
+
+    # --- 📂 ROUTING: Read from 'models/' folder ---
+    json_filename = os.path.join(models_dir, f"final_master_model_{display_algo}.json")
     
     if not os.path.exists(json_filename):
-        print(f"\n[🚨] ERROR: Could not find {json_filename}. Did the server finish the 50 rounds?")
+        print(f"\n[🚨] ERROR: Could not find {json_filename}.")
+        print("Did the server finish all rounds? Is it in the 'server/models/' folder?")
         sys.exit(1)
 
-    # 2. Load and Parse the JSON Weights
     print(f"\n[📂] Loading weights from {json_filename}...")
     with open(json_filename, 'r', encoding='utf-8') as f:
         json_weights = json.load(f)
     
-    # Convert the JSON arrays back into PyTorch Tensors
     state_dict = json_ready_to_state_dict(json_weights)
 
-    # 3. Initialize the Empty Model & Inject Weights
-    in_channels = 3  # Based on your data loader setup
+    in_channels = 3  
     num_classes = 9
     
     print("   [⚙️] Initializing CNN and injecting master weights...")
     model = GenericClientModel(in_channels=in_channels, num_classes=num_classes)
     model.load_state_dict(state_dict)
     
-    # Move to GPU if available for faster inference
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
     model.eval()
 
-    # 4. Load the Pristine Global Validation/Test Dataset
     print("\n[🌍] Loading pristine Global Test dataset...")
     test_loader = get_global_val_loader(batch_size=32)
 
-    # 5. Run the Final Inference
     print("\n[🔍] Running final inference on the test set...")
     criterion = nn.CrossEntropyLoss()
     correct, total, running_loss = 0, 0, 0.0
+
+    all_true_labels = []
+    all_predictions = []
 
     with torch.no_grad():
         for images, labels in test_loader:
@@ -79,7 +91,9 @@ def main():
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-    # 6. Calculate and Display Final Metrics
+            all_true_labels.extend(labels.cpu().numpy())
+            all_predictions.extend(predicted.cpu().numpy())
+
     final_accuracy = correct / total if total > 0 else 0
     final_loss = running_loss / len(test_loader) if len(test_loader) > 0 else 0
 
@@ -89,42 +103,43 @@ def main():
     print("\n" + "="*50)
     print(" 🌟 FINAL OFFICIAL METRICS 🌟")
     print("="*50)
-    print(f"   Algorithm : {args.algo}")
+    print(f"   Algorithm : {display_algo}")
     print(f"   Accuracy  : {acc_str}%")
     print(f"   Loss      : {loss_str}")
     print("="*50 + "\n")
 
-    # 7. Save / Update CSV
-    csv_filename = os.path.join(server_dir, 'server_final_accuracy.csv')
-    print(f"[💾] Saving metrics to {csv_filename}...")
+    # --- 💾 ROUTING: Save to 'confusionMatrix/' folder ---
+    print("[💾] Generating Confusion Matrix...")
+    cm = confusion_matrix(all_true_labels, all_predictions, labels=range(num_classes))
+    
+    cm_filename = os.path.join(cm_dir, f'confusion_matrix_{display_algo}.csv')
+    np.savetxt(cm_filename, cm, delimiter=",", fmt='%d')
+    print(f"[✅] Confusion Matrix saved to {cm_filename}")
 
-    # Dictionary to hold all rows, keyed by algorithm name
+    # --- 💾 ROUTING: Save to 'serverFinalAccuracy/' folder ---
+    csv_filename = os.path.join(acc_dir, f'server_final_accuracy{suffix}.csv')
     records = {}
     fieldnames = ['Algorithm', 'Accuracy(%)', 'Loss']
 
-    # Read existing data if the file exists
     if os.path.exists(csv_filename):
         with open(csv_filename, 'r', newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
-                # Store existing rows
                 records[row['Algorithm']] = row
 
-    # Update or add the new record for the current algorithm
-    records[args.algo] = {
-        'Algorithm': args.algo,
+    records[display_algo] = {
+        'Algorithm': display_algo,
         'Accuracy(%)': acc_str,
         'Loss': loss_str
     }
 
-    # Write all records back to the CSV
     with open(csv_filename, 'w', newline='', encoding='utf-8') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
-        for algo_name in sorted(records.keys()): # Optional: sorted alphabetically by algorithm
+        for algo_name in sorted(records.keys()): 
             writer.writerow(records[algo_name])
             
-    print("[✅] CSV successfully updated!")
+    print(f"[✅] Accuracy CSV successfully updated at {csv_filename}!")
 
 if __name__ == '__main__':
     main()
