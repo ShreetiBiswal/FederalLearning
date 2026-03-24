@@ -3,8 +3,8 @@ import numpy as np
 import medmnist
 from medmnist import INFO
 
-def generate_biased_hospital_databases(num_hospitals=4, min_samples=15):
-    print("🚀 Starting Skewed Local Database Generation...")
+def generate_biased_hospital_databases(num_hospitals=4, alpha=0.05):
+    print("🚀 Starting STRICT DIRICHLET Skewed Local Database Generation...")
 
     # 1. Load MedMNIST (Train AND Val splits)
     info = INFO['pathmnist']
@@ -22,43 +22,38 @@ def generate_biased_hospital_databases(num_hospitals=4, min_samples=15):
     
     print(f"Total raw training images loaded: {len(all_train_images)}")
 
-    # 2. Group the training data by disease class
+    # 2. Group the training data strictly by disease class
     class_indices = {}
     for c in range(num_classes):
         class_indices[c] = np.where(all_train_labels == c)[0].tolist()
 
     hospital_indices = {i: [] for i in range(num_hospitals)}
 
-    # 3. The SMOTE Lifeline (Training Data Only)
-    print(f"🛡️ Distributing baseline of {min_samples} samples per class to each hospital...")
-    for c in range(num_classes):
-        for h in range(num_hospitals):
-            baseline_chunk = class_indices[c][:min_samples]
-            hospital_indices[h].extend(baseline_chunk)
-            class_indices[c] = class_indices[c][min_samples:]
-
-    # 4. Gather everything that is left over
-    remaining_indices = []
-    for c in range(num_classes):
-        remaining_indices.extend(class_indices[c])
-    np.random.shuffle(remaining_indices)
-
-    # 5. The Massive Skew (60%, 25%, 10%, 5%)
-    proportions = [0.60, 0.25, 0.10, 0.05]
-    total_remaining = len(remaining_indices)
+    # 3. The Dirichlet Split (True Non-IID)
+    print(f"📉 Distributing diseases using Dirichlet Distribution (Alpha = {alpha})...")
+    np.random.seed(42) # Seeded for reproducibility
     
-    print(f"📉 Distributing the remaining {total_remaining} images with a massive skew...")
-    current_idx = 0
-    for h in range(num_hospitals):
-        if h == num_hospitals - 1:
-            count = total_remaining - current_idx 
-        else:
-            count = int(total_remaining * proportions[h])
-            
-        hospital_indices[h].extend(remaining_indices[current_idx : current_idx + count])
-        current_idx += count
+    for c in range(num_classes):
+        idx_c = class_indices[c]
+        np.random.shuffle(idx_c)
+        
+        # Draw random proportions for this specific disease across the 4 hospitals
+        # With alpha=0.05, one hospital usually gets almost all of the images for this class!
+        proportions = np.random.dirichlet(np.repeat(alpha, num_hospitals))
+        
+        # Convert proportions into actual image counts
+        counts = np.round(proportions * len(idx_c)).astype(int)
+        
+        # Fix any minor rounding errors to ensure we don't lose or invent images
+        counts[-1] = len(idx_c) - np.sum(counts[:-1])
+        
+        # Distribute the images for this class to the hospitals
+        current_idx = 0
+        for h in range(num_hospitals):
+            hospital_indices[h].extend(idx_c[current_idx : current_idx + counts[h]])
+            current_idx += counts[h]
 
-    # 6. Extract and Save to Physical Folders
+    # 4. Extract and Save to Physical Folders
     base_dir = "clients"
     os.makedirs(base_dir, exist_ok=True)
 
@@ -67,6 +62,9 @@ def generate_biased_hospital_databases(num_hospitals=4, min_samples=15):
         hospital_id = h + 1
         folder_path = os.path.join(base_dir, f"hospital_{hospital_id}_data")
         os.makedirs(folder_path, exist_ok=True)
+        
+        # Shuffle the hospital's final pile so classes aren't clustered together in batches
+        np.random.shuffle(hospital_indices[h])
         
         final_h_images = all_train_images[hospital_indices[h]]
         final_h_labels = all_train_labels[hospital_indices[h]]
@@ -81,7 +79,6 @@ def generate_biased_hospital_databases(num_hospitals=4, min_samples=15):
     eval_folder = os.path.join(base_dir, "global_test_data")
     os.makedirs(eval_folder, exist_ok=True)
     
-    # Save the entire validation dataset here for all hospitals to share
     np.save(os.path.join(eval_folder, "val_images.npy"), val_dataset.imgs)
     np.save(os.path.join(eval_folder, "val_labels.npy"), val_dataset.labels.squeeze())
     
@@ -90,7 +87,6 @@ def generate_biased_hospital_databases(num_hospitals=4, min_samples=15):
     print("📥 Downloading/Loading PathMNIST Test Set...")
     test_dataset = DataClass(split='test', download=True, root='./data') 
     
-    # And then save it next to the val_images in the global_test_data folder
     np.save(os.path.join(eval_folder, "test_images.npy"), test_dataset.imgs)
     np.save(os.path.join(eval_folder, "test_labels.npy"), test_dataset.labels.squeeze())
 
