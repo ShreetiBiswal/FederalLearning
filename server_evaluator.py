@@ -17,7 +17,7 @@ from clients.data_loader import get_global_val_loader
 sio = socketio.Client()
 model = None
 val_loader = None
-csv_filename = "true_global_metrics.csv" # ALWAYS append to this one file
+csv_filename = "true_global_metrics.csv" # Will be updated dynamically
 current_algo = "fedavg" # Will be updated by argparse
 
 # --- The Evaluation Engine ---
@@ -50,7 +50,8 @@ def evaluate_master_model(current_round, json_weights):
     
     print(f"   📊 True Global Accuracy: {accuracy*100:.2f}% | Loss: {avg_loss:.4f}")
     
-    # 4. Log the True Metrics to the unified CSV (NOW INCLUDES ALGO)
+    # 4. Log the True Metrics to the unified CSV 
+    # The \n at the end guarantees every entry perfectly starts on a new line!
     with open(csv_filename, mode='a', encoding='utf-8') as f:
         f.write(f"{current_algo},{current_round},{accuracy},{avg_loss}\n")
 
@@ -76,12 +77,19 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--algo', type=str, default='fedavg', help="Algorithm name for the CSV file naming")
+    parser.add_argument('--iid', action='store_true', help="Flag to write logs to the IID-specific CSV file")
     args = parser.parse_args()
 
     # Store the algo globally so the evaluator function can use it
     current_algo = args.algo 
 
-    print("========== 🌍 GLOBAL EVALUATOR NODE STARTING ==========")
+    # --- 🔀 Dynamic CSV Routing based on the Flag ---
+    if args.iid:
+        csv_filename = "true_global_metrics_iid.csv"
+        print("========== 🌍 GLOBAL EVALUATOR NODE STARTING [IID MODE] ==========")
+    else:
+        csv_filename = "true_global_metrics.csv"
+        print("========== 🌍 GLOBAL EVALUATOR NODE STARTING [NON-IID MODE] ==========")
 
     # 1. Load the pristine Global Validation Data
     val_loader = get_global_val_loader(batch_size=32)
@@ -99,7 +107,7 @@ def main():
     # 4. Connect to Server and Wait Silently
     try:
         sio.connect('http://localhost:3000')
-        print("[🛑] Waiting silently for server to broadcast master weights...")
+        print(f"[🛑] Waiting silently for server to broadcast master weights... (Saving to {csv_filename})")
         sio.wait()
     except Exception as e:
         print(f"Failed to connect: {e}")

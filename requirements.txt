@@ -10,6 +10,7 @@ scipy
 imbalanced-learn
 numpy
 matplotlib
+seaborn
 
 # Networking (WebSocket Client)
 python-socketio[client]

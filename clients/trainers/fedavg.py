@@ -4,9 +4,8 @@ import torch.optim as optim
 def run_fedavg(model, train_loader, epochs=2):
     print(f"   [🧠] Starting FedAvg local training for {epochs} epochs...")
     model.train()
-    
     # Standard SGD
-    optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+    optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-4)
     criterion = nn.CrossEntropyLoss()
     
     for epoch in range(epochs):
