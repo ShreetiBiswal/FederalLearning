@@ -2,7 +2,8 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import fs from 'fs';       
-import zlib from 'zlib';   
+import zlib from 'zlib';  
+import path from 'path'; 
 
 import { aggregateWeightedFedAvg } from './aggregators/fedavg.js';
 import { aggregateWSMClassWeighted } from './aggregators/wsm_class_weighted.js';
@@ -25,7 +26,14 @@ let currentRound = 1;
 let isTrainingActive = false;
 
 // --- Initialize CSV File ---
-const CSV_FILE = 'server_avg_metrics.csv';
+// --- Initialize Folders & CSV File ---
+const SERVER_AVG_DIR = './serverAvgMetrics';
+const MODELS_DIR = './models';
+
+if (!fs.existsSync(SERVER_AVG_DIR)) fs.mkdirSync(SERVER_AVG_DIR, { recursive: true });
+if (!fs.existsSync(MODELS_DIR)) fs.mkdirSync(MODELS_DIR, { recursive: true });
+
+const CSV_FILE = path.join(SERVER_AVG_DIR, 'server_avg_metrics.csv');
 if (!fs.existsSync(CSV_FILE)) {
     fs.writeFileSync(CSV_FILE, 'Algorithm,Round,Global_Accuracy,Global_Loss\n');
 }
@@ -152,7 +160,7 @@ io.on('connection', (socket) => {
                     console.log('\n✅ Federated Learning Training Complete!');
                     
                     // --- NEW: Save the JSON file dynamically ---
-                    const FINAL_MODEL_PATH = `./final_master_model_${currentLogAlgo}.json`;
+                   const FINAL_MODEL_PATH = path.join(MODELS_DIR, `final_master_model_${currentLogAlgo}.json`);
                     
                     fs.writeFileSync(FINAL_MODEL_PATH, JSON.stringify(globalModelUpdates));
                     console.log(`💾 Final Master Model saved to: ${FINAL_MODEL_PATH}`);
