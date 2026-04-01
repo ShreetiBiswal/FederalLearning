@@ -16,6 +16,7 @@ from data_loader import get_dummy_loaders, get_local_hospital_loader
 # --- Import the Modular Algorithms ---
 from trainers.fedavg import run_fedavg
 from trainers.wsm_ce_fedavg import run_wsm_ce_fedAvg
+from trainers.wsm_class_weighted import run_wsm_class_weighted
 
 # --- 1. Global State & Synchronization ---
 sio = socketio.Client()
@@ -88,7 +89,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--hospital_id', type=int, required=True, help="ID of this hospital (1-4)")
-    parser.add_argument('--algo', type=str, default='fedavg', choices=['fedavg', 'wsm_ce_fedavg', 'scaffold'], help="The FL algorithm to use")
+    parser.add_argument('--algo', type=str, default='fedavg', choices=['fedavg', 'wsm_ce_fedavg', 'scaffold', 'wsm_class_weighted', 'wsm_hm_class_weighted'], help="The FL algorithm to use")
     # --- NEW: Flag to toggle SMOTE ---
     parser.add_argument('--disable_smote', action='store_true', help="Pass this flag to disable SMOTE balancing locally")
     args = parser.parse_args()
@@ -154,29 +155,40 @@ def main():
             
             # Evaluate on the LOCAL TRAINING DATA as requested
             print("   [📊] Evaluating Global Model on local training data...")
-            local_acc, local_loss = evaluate_global_model(model, train_loader)
-            print(f"   [🎯] Local Accuracy: {local_acc*100:.2f}%")
+            global_eval_acc, global_eval_loss = evaluate_global_model(model, train_loader)
+            print(f"   [🎯] Local Accuracy: {global_eval_acc*100:.2f}%")
             
             # Append the metrics to this hospital's personal CSV file
             with open(csv_filename, mode='a', encoding='utf-8') as f:
-                f.write(f"{current_round},{local_acc},{local_loss}\n")
+                f.write(f"{current_round},{global_eval_acc},{global_eval_loss}\n")
         else:
             # First round has no global weights yet
-            local_acc, local_loss = 0.0, 0.0
+            global_eval_acc, global_eval_loss = 0.0, 0.0
 
         # 2. Dynamic Algorithm Routing
         if args.algo == 'fedavg':
             training_results = run_fedavg(model, train_loader, epochs=2)
         elif args.algo == 'wsm_ce_fedavg':
             training_results = run_wsm_ce_fedAvg(model, train_loader, epochs=2)
-
+        if args.algo in ['wsm_class_weighted','wsm_hm_class_weighted']:
+            print(f"\n[⚙️] Using custom WSM Class-Weighted Algorithm...")
+            # It now returns 5 items!
+            weights, post_train_acc, post_train_loss, beta_array, total_samples = run_wsm_class_weighted(
+            model, train_loader, epochs=3, lr=0.001
+            )
+            training_results = {
+                "weights": weights,
+                "extra_fields": {
+                    "beta": beta_array
+                }
+            }
         # 3. Serialize and Construct Payload
         print("   [⬆️] Preparing payload...")
         
         payload = {
             "algo": args.algo,
             "dataset_size": dataset_size,
-            "metrics": { "accuracy": local_acc, "loss": local_loss },
+            "metrics": { "accuracy": global_eval_acc, "loss": global_eval_loss },
             "is_compressed": False,
             "smote_disabled": args.disable_smote
         }

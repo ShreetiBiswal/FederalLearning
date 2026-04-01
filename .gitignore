@@ -36,3 +36,5 @@ final_master_model_*.json
 .idea/
 .DS_Store
 Thumbs.db
+
+a.py

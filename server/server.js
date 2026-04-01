@@ -5,6 +5,8 @@ import fs from 'fs';
 import zlib from 'zlib';   
 
 import { aggregateWeightedFedAvg } from './aggregators/fedavg.js';
+import { aggregateWSMClassWeighted } from './aggregators/wsm_class_weighted.js';
+import { aggregateWSMHarmonicClassWeighted } from './aggregators/wsm_harmonic.js';
 
 const app = express();
 const server = createServer(app);
@@ -93,7 +95,8 @@ io.on('connection', (socket) => {
             logAlgo: logAlgoName,      // Custom algo for file saving (e.g., 'wsm_ce_fedavg_nosmote')
             weights: weightsToStore,
             size: payload.dataset_size,
-            metrics: payload.metrics 
+            metrics: payload.metrics ,
+            beta:payload.beta
         });
 
         if (receivedUpdates.length === TARGET_HOSPITALS) {
@@ -131,6 +134,12 @@ io.on('connection', (socket) => {
                 else if (currentAlgo === 'scaffold') {
                     console.log(`   [⚠️] Routing to SCAFFOLD Aggregator...`);
                     globalModelUpdates = aggregateWeightedFedAvg(receivedUpdates); 
+                }
+                else if (currentAlgo === 'wsm_class_weighted') {
+                    globalModelUpdates = aggregateWSMClassWeighted(receivedUpdates);
+                }
+                else if (currentAlgo === 'wsm_hm_class_weighted') {
+                    globalModelUpdates = aggregateWSMHarmonicClassWeighted(receivedUpdates);
                 }
 
                 receivedUpdates = [];
