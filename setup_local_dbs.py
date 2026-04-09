@@ -29,30 +29,51 @@ def generate_biased_hospital_databases(num_hospitals=4, alpha=0.05):
 
     hospital_indices = {i: [] for i in range(num_hospitals)}
 
-    # 3. The Dirichlet Split (True Non-IID)
-    print(f"📉 Distributing diseases using Dirichlet Distribution (Alpha = {alpha})...")
+
+    # 3. Capacity-Constrained Dirichlet Split (Equal Sizes, Skewed Labels)
+    print(f"📉 Distributing diseases using Capacity-Constrained Dirichlet (Alpha = {alpha})...")
     np.random.seed(42) # Seeded for reproducibility
     
+    # Calculate exactly how many images each hospital is allowed to hold
+    total_images = len(all_train_images)
+    target_size = total_images // num_hospitals
+    hospital_capacities = np.array([target_size] * num_hospitals)
+    
     for c in range(num_classes):
-        idx_c = class_indices[c]
+        idx_c = class_indices[c].copy()
         np.random.shuffle(idx_c)
         
-        # Draw random proportions for this specific disease across the 4 hospitals
-        # With alpha=0.05, one hospital usually gets almost all of the images for this class!
-        proportions = np.random.dirichlet(np.repeat(alpha, num_hospitals))
-        
-        # Convert proportions into actual image counts
-        counts = np.round(proportions * len(idx_c)).astype(int)
-        
-        # Fix any minor rounding errors to ensure we don't lose or invent images
-        counts[-1] = len(idx_c) - np.sum(counts[:-1])
-        
-        # Distribute the images for this class to the hospitals
-        current_idx = 0
-        for h in range(num_hospitals):
-            hospital_indices[h].extend(idx_c[current_idx : current_idx + counts[h]])
-            current_idx += counts[h]
-
+        while len(idx_c) > 0:
+            # Find hospitals that still have "beds" available
+            available_hospitals = np.where(hospital_capacities > 0)[0]
+            if len(available_hospitals) == 0:
+                break # All hospitals are perfectly full
+            
+            # Draw highly skewed proportions ONLY for hospitals that have space
+            proportions = np.random.dirichlet(np.repeat(alpha, len(available_hospitals)))
+            
+            # Calculate desired allocation based on remaining images in this class
+            desired_allocation = np.round(proportions * len(idx_c)).astype(int)
+            desired_allocation[-1] = len(idx_c) - np.sum(desired_allocation[:-1]) # Fix rounding
+            desired_allocation = np.maximum(desired_allocation, 0)
+            
+            # 🔥 CRITICAL: Cap the allocation by the hospital's remaining capacity
+            actual_allocation = np.minimum(desired_allocation, hospital_capacities[available_hospitals])
+            
+            # Distribute the images
+            start_idx = 0
+            for i, h in enumerate(available_hospitals):
+                take = actual_allocation[i]
+                if take > 0:
+                    hospital_indices[h].extend(idx_c[start_idx : start_idx + take])
+                    hospital_capacities[h] -= take
+                    start_idx += take
+            
+            # Discard the indices we just allocated.
+            # If we hit capacity limits, start_idx < len(idx_c), and the loop repeats 
+            # to distribute the remaining images of this class to the other hospitals!
+            idx_c = idx_c[start_idx:]
+            
     # 4. Extract and Save to Physical Folders
     base_dir = "clients"
     os.makedirs(base_dir, exist_ok=True)
