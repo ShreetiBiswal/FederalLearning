@@ -7,7 +7,9 @@ import path from 'path';
 
 import { aggregateWeightedFedAvg } from './aggregators/fedavg.js';
 import { aggregateWSMClassWeighted } from './aggregators/wsm_class_weighted.js';
-import { aggregateWSMHarmonicClassWeighted } from './aggregators/wsm_harmonic.js';
+//import { aggregateWSMHarmonicClassWeighted } from './aggregators/wsm_harmonic.js';
+import { aggregateSCAFFOLD } from './aggregators/scaffold.js';
+import { aggregateErrorAwareHarmonic } from './aggregators/wsm_harmonic.js';
 
 const app = express();
 const server = createServer(app);
@@ -18,12 +20,13 @@ const io = new Server(server, {
 });
 
 const TARGET_HOSPITALS = 4;
-const MAX_ROUNDS = 50;            
+const MAX_ROUNDS = 100;            
 let connectedHospitals = [];
 let evaluatorId = null;
 let receivedUpdates = [];
 let currentRound = 1;
 let isTrainingActive = false;
+let globalControlVariateState = null; // SCAFFOLD state memory
 
 // --- Initialize CSV File ---
 // --- Initialize Folders & CSV File ---
@@ -104,7 +107,8 @@ io.on('connection', (socket) => {
             weights: weightsToStore,
             size: payload.dataset_size,
             metrics: payload.metrics ,
-            beta:payload.beta
+            beta:payload.beta,
+            local_c: payload.local_c 
         });
 
         if (receivedUpdates.length === TARGET_HOSPITALS) {
@@ -136,18 +140,21 @@ io.on('connection', (socket) => {
                 let globalModelUpdates;
 
                 // --- The Algorithm Router (Still uses the base 'currentAlgo') ---
+                // --- The Algorithm Router ---
                 if (currentAlgo === 'fedavg' || currentAlgo === 'ce_fedavg' || currentAlgo === 'wsm_ce_fedavg') {
                     globalModelUpdates = aggregateWeightedFedAvg(receivedUpdates);
                 } 
-                else if (currentAlgo === 'scaffold') {
-                    console.log(`   [⚠️] Routing to SCAFFOLD Aggregator...`);
-                    globalModelUpdates = aggregateWeightedFedAvg(receivedUpdates); 
-                }
                 else if (currentAlgo === 'wsm_class_weighted') {
                     globalModelUpdates = aggregateWSMClassWeighted(receivedUpdates);
                 }
                 else if (currentAlgo === 'wsm_hm_class_weighted') {
-                    globalModelUpdates = aggregateWSMHarmonicClassWeighted(receivedUpdates);
+                    // 🚨 NEW: Use the updated 3-way aggregator
+                    globalModelUpdates = aggregateErrorAwareHarmonic(receivedUpdates);
+                }
+                else if (currentAlgo === 'scaffold') {
+                    let scaffoldResults = aggregateSCAFFOLD(receivedUpdates);
+                    globalModelUpdates = scaffoldResults.globalWeights;
+                    globalControlVariateState = scaffoldResults.globalControlVariates;
                 }
 
                 receivedUpdates = [];
@@ -155,7 +162,7 @@ io.on('connection', (socket) => {
 
                 if (currentRound <= MAX_ROUNDS) {
                     console.log(`[⬆️] Broadcasting Round ${currentRound} master weights...`);
-                    io.emit('apply_global_update', { global_weights: globalModelUpdates, round: currentRound });
+                    io.emit('apply_global_update', { global_weights: globalModelUpdates,global_c: globalControlVariateState, round: currentRound });
                 } else {
                     console.log('\n✅ Federated Learning Training Complete!');
                     
