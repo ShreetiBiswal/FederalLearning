@@ -5,6 +5,7 @@ import torch.nn as nn
 import socketio
 import sys
 import os
+import gc
 
 # Add the parent directory to the path so we can import from 'shared' and 'trainers'
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -17,6 +18,7 @@ from data_loader import get_dummy_loaders, get_local_hospital_loader
 from trainers.fedavg import run_fedavg
 from trainers.wsm_ce_fedavg import run_wsm_ce_fedAvg
 from trainers.wsm_class_weighted import run_wsm_class_weighted
+from trainers.scaffold import run_scaffold  # 🔥 NEW: Import SCAFFOLD
 
 # --- 1. Global State & Synchronization ---
 sio = socketio.Client()
@@ -25,6 +27,10 @@ training_finished = False
 
 global_model_weights = None
 current_round = 1
+
+# 🔥 NEW: SCAFFOLD State Memory
+global_c_state = None  
+local_c_state = None   
 
 # --- 2. WebSocket Event Listeners (Background Threads) ---
 @sio.event
@@ -41,9 +47,17 @@ def on_start_training(data):
 
 @sio.on('apply_global_update')
 def on_apply_update(data):
-    global global_model_weights, current_round
+    global global_model_weights, current_round, global_c_state
     print(f"\n[📥] Downloading updated global master weights from Server...")
     global_model_weights = json_ready_to_state_dict(data['global_weights'])
+    
+    # 🔥 NEW: Safely extract and convert the global control variate for SCAFFOLD
+    raw_global_c = data.get('global_c')
+    if raw_global_c is not None:
+        global_c_state = json_ready_to_state_dict(raw_global_c)
+    else:
+        global_c_state = None
+        
     current_round = data['round']
     server_response_event.set() 
 
@@ -64,14 +78,16 @@ def disconnect():
     print("\n[🔌] Disconnected from Server.")
 
 # --- 3. The Evaluation Engine ---
-def evaluate_global_model(model, data_loader):
+def evaluate_global_model(model, data_loader, device='cpu'):
     """ Tests the downloaded master model before local training begins to track accuracy """
     model.eval()
+    model.to(device)
     criterion = nn.CrossEntropyLoss()
     correct, total, running_loss = 0, 0, 0.0
     
     with torch.no_grad():
         for images, labels in data_loader:
+            images, labels = images.to(device), labels.to(device)
             outputs = model(images)
             loss = criterion(outputs, labels)
             running_loss += loss.item()
@@ -85,25 +101,27 @@ def evaluate_global_model(model, data_loader):
 
 # --- 4. The Main Execution Flow ---
 def main():
-    global global_model_weights, training_finished
+    global global_model_weights, training_finished, global_c_state, local_c_state
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--hospital_id', type=int, required=True, help="ID of this hospital (1-4)")
     parser.add_argument('--algo', type=str, default='fedavg', choices=['fedavg', 'wsm_ce_fedavg', 'scaffold', 'wsm_class_weighted', 'wsm_hm_class_weighted'], help="The FL algorithm to use")
-    # --- NEW: Flag to toggle SMOTE ---
     parser.add_argument('--disable_smote', action='store_true', help="Pass this flag to disable SMOTE balancing locally")
     args = parser.parse_args()
     
     print(f"========== 🏥 HOSPITAL {args.hospital_id} [{args.algo.upper()}] NODE STARTING ==========")
 
-    #To support low power gareeb system
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"[⚙️] Hardware: Using device {device}")
+
+    # To support low power gareeb system
     batch_size = 8
 
-    # A. Load the local database (Now passing the SMOTE flag)
+    # A. Load the local database 
     train_loader, in_channels = get_local_hospital_loader(
         hospital_id=args.hospital_id, 
         batch_size=batch_size, 
-        use_smote=not args.disable_smote # Inverse logic: if disable_smote is True, use_smote is False
+        use_smote=not args.disable_smote 
     )
     dataset_size = len(train_loader.dataset)
     num_classes = 9
@@ -145,17 +163,17 @@ def main():
         # 1. Apply Master Weights & Evaluate for the Graph!
         if global_model_weights is not None:
             model.load_state_dict(global_model_weights)
-            # --- ADD THIS FOR 8GB RAM ---
-            import gc
-            del global_model_weights # Remove the dictionary to free RAM
+            
+            # Memory Management for 8GB RAM
+            del global_model_weights 
             global_model_weights = None 
             gc.collect() 
-            # ----------------------------
+            
             print("   [⚙️] Global model weights injected into local CNN.")
             
-            # Evaluate on the LOCAL TRAINING DATA as requested
+            # Evaluate on the LOCAL TRAINING DATA
             print("   [📊] Evaluating Global Model on local training data...")
-            global_eval_acc, global_eval_loss = evaluate_global_model(model, train_loader)
+            global_eval_acc, global_eval_loss = evaluate_global_model(model, train_loader, device=device)
             print(f"   [🎯] Local Accuracy: {global_eval_acc*100:.2f}%")
             
             # Append the metrics to this hospital's personal CSV file
@@ -165,16 +183,49 @@ def main():
             # First round has no global weights yet
             global_eval_acc, global_eval_loss = 0.0, 0.0
 
+        # 🔥 CRITICAL FIX 3: Dynamic Learning Rate based on Round
+        # 🔥 UPDATED for 100 Rounds: Stretch the decay schedule
+        dynamic_lr = 0.001
+        if current_round > 40:      # Settle phase
+            dynamic_lr = 0.0001
+        if current_round > 75:      # Final fine-tuning phase
+            dynamic_lr = 0.00001
+
+        # 2. Dynamic Algorithm Routing
         # 2. Dynamic Algorithm Routing
         if args.algo == 'fedavg':
-            training_results = run_fedavg(model, train_loader, epochs=2)
+            # 🔥 CRITICAL FIX 2: Pass dynamic_lr and device
+            training_results = run_fedavg(
+                model, 
+                train_loader, 
+                epochs=2, 
+                lr=dynamic_lr, 
+                device=device
+            )
         elif args.algo == 'wsm_ce_fedavg':
-            training_results = run_wsm_ce_fedAvg(model, train_loader, epochs=2)
-        if args.algo in ['wsm_class_weighted','wsm_hm_class_weighted']:
-            print(f"\n[⚙️] Using custom WSM Class-Weighted Algorithm...")
-            # It now returns 5 items!
+            training_results = run_wsm_ce_fedAvg(model, train_loader, epochs=2, lr=dynamic_lr, device=device)
+            
+        elif args.algo == 'scaffold':
+            print(f"\n[⚙️] Using SCAFFOLD Algorithm...")
+            weights, post_train_acc, post_train_loss, new_local_c = run_scaffold(
+                model, train_loader, 
+                global_c=global_c_state, 
+                local_c=local_c_state, 
+                epochs=3, lr=dynamic_lr, device=device
+            )
+            local_c_state = new_local_c # Store locally for the next round!
+            
+            training_results = {
+                "weights": weights,
+                "extra_fields": {
+                    "local_c": state_dict_to_json_ready(new_local_c) # Serialize control variate for server
+                }
+            }
+            
+        elif args.algo in ['wsm_class_weighted','wsm_hm_class_weighted']:
+            print(f"\n[⚙️] Using custom WSM Algorithm ({args.algo}) with LR {dynamic_lr}...")
             weights, post_train_acc, post_train_loss, beta_array, total_samples = run_wsm_class_weighted(
-            model, train_loader, epochs=3, lr=0.001
+                model, train_loader, epochs=3, lr=dynamic_lr, device=device
             )
             training_results = {
                 "weights": weights,
@@ -182,6 +233,7 @@ def main():
                     "beta": beta_array
                 }
             }
+
         # 3. Serialize and Construct Payload
         print("   [⬆️] Preparing payload...")
         
@@ -193,6 +245,7 @@ def main():
             "smote_disabled": args.disable_smote
         }
         
+        # Attach the extra fields dynamically (beta for WSM, local_c for SCAFFOLD)
         if "extra_fields" in training_results:
             payload.update(training_results["extra_fields"])
 

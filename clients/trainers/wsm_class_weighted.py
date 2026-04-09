@@ -21,13 +21,13 @@ def run_wsm_class_weighted(model, train_loader, epochs=2, lr=0.001, device='cpu'
     beta = class_counts / total_samples
 
     # 2. 🧮 Prepare the WSM Mathematical Log-Adjustments
-    # We use the Logit-Adjustment trick for absolute numerical stability.
     log_beta = torch.zeros(num_classes, dtype=torch.float32).to(device)
     for i in range(num_classes):
         if beta[i] > 0:
             log_beta[i] = np.log(beta[i])
         else:
-            log_beta[i] = -1e9  # Mathematically drops the class from the softmax denominator
+            # 🔥 CRITICAL FIX 1: Use -10.0 instead of -1e9 to prevent loss explosions
+            log_beta[i] = -10.0  
             
     # 3. Standard Optimizer and Criterion
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -53,6 +53,10 @@ def run_wsm_class_weighted(model, train_loader, epochs=2, lr=0.001, device='cpu'
             # Calculate loss and backward pass
             loss = criterion(adjusted_logits, labels)
             loss.backward()
+            
+            # 🔥 CRITICAL FIX 2: Gradient Clipping to catch explosive non-IID updates
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            
             optimizer.step()
             
             # Metrics
