@@ -1,7 +1,7 @@
 import numpy as np
 import os
 
-def main():
+def calculate_alpha():
     print("========== 📊 DIRICHLET ALPHA ESTIMATOR ==========")
     
     num_hospitals = 4
@@ -45,9 +45,10 @@ def main():
     
     if mean_variance == 0:
         print("\n[✅] Variance is 0. Data is perfectly IID. Alpha approaches Infinity.")
+        return "∞"  # 👇 ADD THIS
     else:
-        # The inverted Dirichlet variance formula
         estimated_alpha = (1.0 / num_classes) * (((p * (1 - p)) / mean_variance) - 1)
+        estimated_alpha = max(0.001, estimated_alpha)
         
         # Alpha cannot be mathematically negative; if it is, the data is 
         # more disjointed than a standard Dirichlet can model.
@@ -62,6 +63,8 @@ def main():
             print("   -> 📊 MODERATE HETEROGENEITY")
         else:
             print("   -> 🟢 LOW HETEROGENEITY (Near IID)")
+        
+        return estimated_alpha
 
 if __name__ == '__main__':
-    main()
+    calculate_alpha()

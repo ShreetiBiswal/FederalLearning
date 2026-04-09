@@ -1,94 +1,140 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import os
 import argparse
+import base64
+from io import BytesIO
 
-def plot_metrics(is_iid):
-    # 1. Determine the suffix and title based on the flag
-    suffix = "_iid" if is_iid else ""
-    data_type = "IID (Perfectly Balanced)" if is_iid else "Non-IID (Highly Skewed)"
+PALETTE = ['#378ADD', '#1D9E75', '#D85A30', '#7F77DD', '#BA7517']
 
-    # 2. Bulletproof Path Resolution
+
+def style_axis(ax):
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#CCCCCC')
+    ax.spines['bottom'].set_color('#CCCCCC')
+    ax.spines['left'].set_linewidth(1.0)
+    ax.spines['bottom'].set_linewidth(1.0)
+    ax.yaxis.grid(True, linestyle='-', color='#EEEEEE', linewidth=1.0)
+    ax.xaxis.grid(False)
+    ax.set_axisbelow(True)
+    ax.tick_params(axis='both', which='major', labelsize=10,
+                   colors='#888888', length=0, width=0)
+    ax.set_xlabel('Communication round', fontsize=11, color='#999999', labelpad=8)
+
+
+def plot_metrics(is_iid, return_base64=False):
+    suffix    = "_iid" if is_iid else ""
+    data_type = "IID — Perfectly Balanced" if is_iid else "Non-IID — Highly Skewed"
+
     plotter_dir = os.path.dirname(os.path.abspath(__file__))
-    # Points to the root folder where true_global_metrics.csv lives
-    csv_path = os.path.abspath(os.path.join(plotter_dir, '..', f'true_global_metrics{suffix}.csv'))
+    csv_path    = os.path.abspath(os.path.join(plotter_dir, '..', f'true_global_metrics{suffix}.csv'))
 
     try:
-        print(f"📊 Loading {data_type} data from {csv_path}...")
+        print(f"📊  Loading {data_type} data from {csv_path}...")
         df = pd.read_csv(csv_path)
     except FileNotFoundError:
-        print(f"❌ Error: Could not find '{csv_path}'.")
-        print("Make sure your evaluator node generated this file in the root directory!")
+        print(f"❌  Could not find '{csv_path}'.")
+        print("    Make sure your evaluator node generated this file in the root directory.")
         return
 
-    # 3. Clean up column names (removes hidden spaces)
     df.columns = df.columns.str.strip()
 
-    # Ensure we have the right columns
     required_cols = ['Algorithm', 'Round', 'Accuracy', 'Loss']
     if not all(col in df.columns for col in required_cols):
-        print(f"❌ Error: CSV must contain 'Algorithm', 'Round', 'Accuracy', and 'Loss'. Found: {df.columns.tolist()}")
+        print(f"❌  CSV must contain {required_cols}. Found: {df.columns.tolist()}")
         return
 
-    # 4. Setup the Plot Canvas with 2 subplots side-by-side
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-    fig.suptitle(f'True Global Evaluation: Baseline vs Custom Algorithms\n[{data_type} Data]', fontsize=16, fontweight='bold', y=0.98)
-
-    # 5. Set up styling
-    colors = ['#1f77b4', '#d62728', '#2ca02c', '#9467bd', '#ff7f0e'] # Blue, Red, Green, Purple, Orange
     algorithms = df['Algorithm'].unique()
-    
+
+    plt.style.use('default')
+    plt.rcParams.update({
+        'font.family':      'sans-serif',
+        'font.size':        11,
+        'figure.facecolor': 'white',
+        'axes.facecolor':   'white',
+    })
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5))
+    fig.subplots_adjust(top=0.78, bottom=0.12, left=0.07, right=0.97, wspace=0.28)
+
+    fig.suptitle(
+        f'True Global Evaluation — Baseline vs Custom Algorithms\n{data_type}',
+        fontsize=14, fontweight='normal', color='#333333', y=0.98
+    )
+
     handles = []
-    labels = []
+    for idx, algo in enumerate(algorithms):
+        color = PALETTE[idx % len(PALETTE)]
+        label = algo.replace('_', ' ').upper()
+        data  = df[df['Algorithm'] == algo].sort_values('Round')
 
-    # 6. Loop through each algorithm and plot
-    for i, algo in enumerate(algorithms):
-        algo_data = df[df['Algorithm'] == algo]
-        color = colors[i % len(colors)]
-        
-        # Plot Accuracy on Left (ax1)
-        line, = ax1.plot(algo_data['Round'], algo_data['Accuracy'], color=color, marker='o', 
-                         linestyle='-', linewidth=2, label=f'{algo.upper()}')
-        
-        # Plot Loss on Right (ax2) - using dashed lines and 'x' markers to differentiate
-        ax2.plot(algo_data['Round'], algo_data['Loss'], color=color, marker='x', 
-                 linestyle='--', linewidth=2)
-        
-        # Collect legend handles (we only need one set since colors match across both graphs)
-        handles.append(line)
-        labels.append(algo.upper())
+        line, = ax1.plot(
+            data['Round'], data['Accuracy'] * 100,
+            color=color, linewidth=2.0, alpha=0.9, solid_capstyle='round'
+        )
+        ax2.plot(
+            data['Round'], data['Loss'],
+            color=color, linewidth=2.0, alpha=0.9, solid_capstyle='round'
+        )
 
-    # Format Accuracy Plot (Left)
-    ax1.set_title('Global Validation Accuracy', fontsize=13, fontweight='bold')
-    ax1.set_xlabel('Communication Round', fontsize=11)
-    ax1.set_ylabel('Accuracy', fontsize=11)
-    ax1.set_ylim(0, 1.0) 
-    ax1.grid(True, linestyle='--', alpha=0.6)
+        # End-of-line annotations
+        final_acc  = data['Accuracy'].iloc[-1] * 100
+        final_loss = data['Loss'].iloc[-1]
+        final_rnd  = data['Round'].iloc[-1]
 
-    # Format Loss Plot (Right)
-    ax2.set_title('Global Validation Loss', fontsize=13, fontweight='bold')
-    ax2.set_xlabel('Communication Round', fontsize=11)
-    ax2.set_ylabel('Loss', fontsize=11)
-    
-    # Check if the dataframe is empty before getting the max loss
-    if not df.empty and not df['Loss'].isna().all():
-        max_loss = df['Loss'].max()
-        ax2.set_ylim(0, max_loss + 0.5) 
-        
-    ax2.grid(True, linestyle='--', alpha=0.6)
+        ax1.annotate(
+            f'{final_acc:.1f}%',
+            xy=(final_rnd, final_acc),
+            xytext=(4, 0), textcoords='offset points',
+            fontsize=9, color=color, va='center'
+        )
+        ax2.annotate(
+            f'{final_loss:.3f}',
+            xy=(final_rnd, final_loss),
+            xytext=(4, 0), textcoords='offset points',
+            fontsize=9, color=color, va='center'
+        )
 
-    # 7. Add a Single Unified Legend at the bottom of the whole figure
-    fig.legend(handles, labels, loc='lower center', ncol=len(algorithms), 
-               bbox_to_anchor=(0.5, 0.01), fancybox=True, shadow=True, fontsize=12)
+        handles.append((line, label))
 
-    # 8. Show the plot interactively
-    # We leave 8% margin at the bottom so the legend doesn't overlap the X-axis
-    plt.tight_layout(rect=[0, 0.08, 1, 0.95])
-    plt.show()
+    ax1.set_ylabel('Accuracy (%)', fontsize=11, color='#888888', labelpad=8)
+    ax2.set_ylabel('Loss',         fontsize=11, color='#888888', labelpad=8)
+    ax1.yaxis.set_major_formatter(mticker.FormatStrFormatter('%.0f%%'))
+    ax2.yaxis.set_major_formatter(mticker.FormatStrFormatter('%.2f'))
+
+    for ax in (ax1, ax2):
+        style_axis(ax)
+
+    fig.legend(
+        [h[0] for h in handles],
+        [h[1] for h in handles],
+        loc='upper center',
+        bbox_to_anchor=(0.5, 0.91),
+        ncol=len(algorithms),
+        fontsize=10,
+        frameon=True,
+        facecolor='#F8F9FA',
+        edgecolor='#E0E0E0',
+        handlelength=1.8,
+        handletextpad=0.6,
+        columnspacing=1.8,
+    )
+
+    if return_base64:
+        buf = BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+        plt.close(fig)
+        buf.seek(0)
+        return base64.b64encode(buf.read()).decode('utf-8')
+    else:
+        plt.show()
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Plot true global evaluation metrics.")
     parser.add_argument('--iid', action='store_true', help="Flag to plot IID-specific results")
     args = parser.parse_args()
-    
+
     plot_metrics(args.iid)

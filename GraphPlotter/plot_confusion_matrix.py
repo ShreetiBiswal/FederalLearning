@@ -3,42 +3,34 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import base64
+from io import BytesIO
 
-def main():
-    parser = argparse.ArgumentParser(description="Plot a saved Confusion Matrix CSV with Metrics.")
-    parser.add_argument('--algo', type=str, required=True, help="The algorithm name (e.g., wsm_ce_fedavg_nosmote)")
-    parser.add_argument('--iid', action='store_true', help="Flag to load the IID-specific confusion matrix")
-    args = parser.parse_args()
-
+def plot_confusion_matrix(algo, iid=False, return_base64=False):
     # 1. Determine suffix and title
-    suffix = "_iid" if args.iid else ""
-    display_algo = f"{args.algo}{suffix}"
-    data_type = "IID (Perfectly Balanced)" if args.iid else "Non-IID (Highly Skewed)"
+    suffix = "_iid" if iid else ""
+    display_algo = f"{algo}{suffix}"
+    data_type = "IID (Perfectly Balanced)" if iid else "Non-IID (Highly Skewed)"
 
-    # 2. Bulletproof Path Resolution
+    # 2. Path Resolution
     plotter_dir = os.path.dirname(os.path.abspath(__file__))
     server_dir = os.path.abspath(os.path.join(plotter_dir, '..', 'server'))
-    
-    # Target the new modular confusionMatrix folder
     cm_filename = os.path.join(server_dir, 'confusionMatrix', f'confusion_matrix_{display_algo}.csv')
 
     if not os.path.exists(cm_filename):
         print(f"[🚨] ERROR: Could not find {cm_filename}.")
-        print("Run 'python evaluate_final_model.py' first to generate it!")
-        return
+        return None
 
     # 3. Load the matrix data
-    print(f"📊 Loading matrix data from {cm_filename}...")
     cm = np.loadtxt(cm_filename, delimiter=",", dtype=int)
     num_classes = cm.shape[0]
 
-    # --- 🧮 4. Calculate Strict Academic Metrics ---
+    # --- 4. Calculate Strict Academic Metrics ---
     total = np.sum(cm)
     TP = np.diag(cm)
     FP = np.sum(cm, axis=0) - TP
     FN = np.sum(cm, axis=1) - TP
     
-    # "Support" is the actual number of true images for that class
     actual_support = TP + FN 
 
     with np.errstate(divide='ignore', invalid='ignore'):
@@ -53,7 +45,7 @@ def main():
 
     overall_acc = np.sum(TP) / total
 
-    # --- 🎨 5. Set up the Side-by-Side Plot ---
+    # --- 5. Set up the Side-by-Side Plot ---
     fig, (ax_cm, ax_table) = plt.subplots(1, 2, figsize=(19, 8), gridspec_kw={'width_ratios': [2, 1.4]})
     sns.set_theme(style="white")
     
@@ -103,14 +95,23 @@ def main():
     ax_table.text(0.5, 0.05, f"Overall Global Accuracy: {overall_acc*100:.2f}%", 
                   ha='center', va='center', fontsize=14, fontweight='bold', transform=ax_table.transAxes)
 
-    # --- 6. Save and Show ---
-    # Saves the image right inside your GraphPlotter folder!
-    output_img = os.path.join(plotter_dir, f'plot_cm_metrics_{display_algo}.png')
+    # --- 6. Return or Show ---
     plt.tight_layout()
-    #plt.savefig(output_img, dpi=300, bbox_inches='tight', facecolor='white')
     
-    print(f"\n[✅] Beautiful Matrix + Table saved as {output_img}!")
-    plt.show()
+    if return_base64:
+        buf = BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+        plt.close(fig)
+        buf.seek(0)
+        return base64.b64encode(buf.read()).decode('utf-8')
+    else:
+        plt.show()
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description="Plot a saved Confusion Matrix CSV with Metrics.")
+    parser.add_argument('--algo', type=str, required=True, help="The algorithm name")
+    parser.add_argument('--iid', action='store_true', help="Flag to load the IID-specific matrix")
+    args = parser.parse_args()
+    
+    # Run normally for terminal execution
+    plot_confusion_matrix(algo=args.algo, iid=args.iid)
