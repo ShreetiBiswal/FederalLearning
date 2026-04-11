@@ -14,7 +14,7 @@ def run_scaffold(model, train_loader, global_c, local_c, epochs=3, lr=0.001, dev
     global_model_weights = copy.deepcopy(model.state_dict())
     
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1) # Keep your safety measures!
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=1e-4)
+    optimizer = optim.SGD(model.parameters(), lr=lr)
     
     total_loss = 0.0
     total_samples = 0

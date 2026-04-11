@@ -11,8 +11,6 @@ from calculate_alpha import calculate_alpha
 
 # =====================================================================
 TARGET_ALGORITHMS = [
-    "fedavg_nosmote",
-    "wsm_ce_fedavg_nosmote",
     "wsm_hm_class_weighted_nosmote",
     "scaffold_nosmote"
 ]
@@ -367,8 +365,15 @@ def generate_master_report(iid=False):
 
     if alpha_val == "∞":
         alpha_html = '<div class="badge alpha">Dirichlet α = ∞</div>'
+        data_type = "IID (Perfectly Balanced)"
     elif isinstance(alpha_val, float):
         alpha_html = f'<div class="badge alpha">Dirichlet α ≈ {alpha_val:.3f}</div>'
+        if(alpha_val>=1):
+            data_type = "IID (Perfectly Balanced)"
+        elif(alpha_val <1 and alpha_val>0.1):
+            data_type = "Non-IID (Highly Skewed)"
+        else:
+            data_type = "EXTREME HETEROGENEITY (Highly Non-IID)"
     else:
         alpha_html = ''
 
