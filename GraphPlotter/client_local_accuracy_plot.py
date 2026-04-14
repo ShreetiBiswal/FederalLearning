@@ -31,7 +31,7 @@ def style_axis(ax):
 
 def plot_client_metrics(algo, is_iid, return_base64=False):
     folder_suffix = "_results_iid" if is_iid else "_results"
-    data_type     = "IID — Perfectly Balanced" if is_iid else "Non-IID — Highly Skewed"
+    # data_type     = "IID — Perfectly Balanced" if is_iid else "Non-IID — Highly Skewed"
 
     plotter_dir    = os.path.dirname(os.path.abspath(__file__))
     results_dir    = os.path.abspath(os.path.join(plotter_dir, '..', 'results'))
@@ -43,7 +43,7 @@ def plot_client_metrics(algo, is_iid, return_base64=False):
         print(f"    Expected path: results/{algo}{folder_suffix}/hospital_*_metrics.csv")
         return
 
-    print(f"📊  Found {len(csv_files)} client files for {algo.upper()} [{data_type}].")
+    # print(f"📊  Found {len(csv_files)} client files for {algo.upper()} [{data_type}].")
 
     colors = get_palette(len(csv_files))
 
@@ -59,7 +59,7 @@ def plot_client_metrics(algo, is_iid, return_base64=False):
     fig.subplots_adjust(top=0.78, bottom=0.12, left=0.07, right=0.97, wspace=0.28)
 
     fig.suptitle(
-        f'Local Hospital Training Performance — {algo.upper()}\n{data_type}',
+        f'Local Hospital Training Performance — {algo.upper()}',
         fontsize=14, fontweight='normal', color='#333333', y=0.98
     )
 

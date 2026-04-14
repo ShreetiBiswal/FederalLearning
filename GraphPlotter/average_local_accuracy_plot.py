@@ -30,7 +30,7 @@ def plot_server_metrics(return_base64=False):
     args = parser.parse_args()
 
     suffix    = "_iid" if args.iid else ""
-    data_type = "IID — Perfectly Balanced" if args.iid else "Non-IID — Highly Skewed"
+    # data_type = "IID — Perfectly Balanced" if args.iid else "Non-IID — Highly Skewed"
 
     plotter_dir = os.path.dirname(os.path.abspath(__file__))
     server_dir  = os.path.abspath(os.path.join(plotter_dir, '..', 'server'))
@@ -40,7 +40,7 @@ def plot_server_metrics(return_base64=False):
         print(f"❌  Could not find {csv_file}.")
         return
 
-    print(f"📊  Loading {data_type} data from {csv_file}...")
+    # print(f"📊  Loading {data_type} data from {csv_file}...")
     df         = pd.read_csv(csv_file)
     algorithms = df['Algorithm'].unique()
 
@@ -56,7 +56,7 @@ def plot_server_metrics(return_base64=False):
     fig.subplots_adjust(top=0.78, bottom=0.12, left=0.07, right=0.97, wspace=0.28)
 
     fig.suptitle(
-        f'Federated Learning — Global Model Performance\n{data_type}',
+        f'Federated Learning — Global Model Performance\nAverage Client Accuracy',
         fontsize=14, fontweight='normal', color='#333333', y=0.98
     )
 

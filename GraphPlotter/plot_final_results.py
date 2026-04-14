@@ -12,7 +12,7 @@ def plot_final_results(iid=False, return_base64=False):
     """
     # --- 1. Determine Suffix & Path ---
     suffix = "_iid" if iid else ""
-    data_type = "IID (Perfectly Balanced)" if iid else "Non-IID (Highly Skewed)"
+    # data_type = "IID (Perfectly Balanced)" if iid else "Non-IID (Highly Skewed)"
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
@@ -29,7 +29,7 @@ def plot_final_results(iid=False, return_base64=False):
         return None
 
     if not return_base64:
-        print(f"[📂] Reading {data_type} data from {csv_filename}...")
+        print(f"[📂] Reading data from {csv_filename}...")
         
     with open(csv_filename, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
@@ -44,22 +44,31 @@ def plot_final_results(iid=False, return_base64=False):
 
     # --- 2. Setup the Figure ---
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-    fig.suptitle(f'Final Global Model Performance\n[{data_type} Medical Data]', fontsize=16, fontweight='bold', y=1.05)
+    fig.suptitle(f'Final Global Model Performance', fontsize=16, fontweight='bold', y=1.05)
 
     # Dynamic colors
     color_palette = ['#e74c3c', '#2ecc71', '#3498db', '#f1c40f', '#9b59b6', '#e67e22']
     colors = [color_palette[i % len(color_palette)] for i in range(len(algorithms))]
 
     # --- 3. Accuracy Plot (Higher is Better) ---
+    # --- 3. Accuracy Plot (Higher is Better) ---
     bars1 = ax1.bar(algorithms, accuracies, color=colors, edgecolor='black')
     ax1.set_title('Final Global Accuracy (%)', fontsize=14)
-    ax1.set_ylim(0, 100)
+    
+    # FIX: Increased upper bound to 110 to prevent text overflow for values > 95%
+    ax1.set_ylim(0, 110) 
+    
     ax1.set_ylabel('Accuracy (%)', fontsize=12)
     ax1.grid(axis='y', linestyle='--', alpha=0.7)
     
     # Rotate the X-axis labels
     ax1.set_xticks(range(len(algorithms)))
     ax1.set_xticklabels(algorithms, rotation=25, ha='right', fontsize=11)
+
+    # Add value labels on top of bars
+    for bar in bars1:
+        yval = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2, yval + 2, f"{yval:.2f}%", ha='center', va='bottom', fontweight='bold', fontsize=12)
 
     # Add value labels on top of bars
     for bar in bars1:

@@ -26,13 +26,13 @@ def style_axis(ax):
 
 def plot_metrics(is_iid, return_base64=False):
     suffix    = "_iid" if is_iid else ""
-    data_type = "IID — Perfectly Balanced" if is_iid else "Non-IID — Highly Skewed"
+    #data_type = "IID — Perfectly Balanced" if is_iid else "Non-IID — Highly Skewed"
 
     plotter_dir = os.path.dirname(os.path.abspath(__file__))
     csv_path    = os.path.abspath(os.path.join(plotter_dir, '..', f'true_global_metrics{suffix}.csv'))
 
     try:
-        print(f"📊  Loading {data_type} data from {csv_path}...")
+        #print(f"📊  Loading {data_type} data from {csv_path}...")
         df = pd.read_csv(csv_path)
     except FileNotFoundError:
         print(f"❌  Could not find '{csv_path}'.")
@@ -60,7 +60,7 @@ def plot_metrics(is_iid, return_base64=False):
     fig.subplots_adjust(top=0.78, bottom=0.12, left=0.07, right=0.97, wspace=0.28)
 
     fig.suptitle(
-        f'True Global Evaluation — Baseline vs Custom Algorithms\n{data_type}',
+        f'Global Validation — Baseline vs Custom Algorithms',
         fontsize=14, fontweight='normal', color='#333333', y=0.98
     )
 

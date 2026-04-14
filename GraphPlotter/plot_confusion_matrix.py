@@ -10,7 +10,7 @@ def plot_confusion_matrix(algo, iid=False, return_base64=False):
     # 1. Determine suffix and title
     suffix = "_iid" if iid else ""
     display_algo = f"{algo}{suffix}"
-    data_type = "IID (Perfectly Balanced)" if iid else "Non-IID (Highly Skewed)"
+    # data_type = "IID (Perfectly Balanced)" if iid else "Non-IID (Highly Skewed)"
 
     # 2. Path Resolution
     plotter_dir = os.path.dirname(os.path.abspath(__file__))
@@ -53,7 +53,7 @@ def plot_confusion_matrix(algo, iid=False, return_base64=False):
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
                 linewidths=.5, square=True, cbar_kws={"shrink": .75}, ax=ax_cm)
 
-    ax_cm.set_title(f'Global Confusion Matrix\nAlgorithm: {display_algo.upper()}\n[{data_type}]', fontsize=16, fontweight='bold', pad=20)
+    ax_cm.set_title(f'Global Confusion Matrix\nAlgorithm: {display_algo.upper()}', fontsize=16, fontweight='bold', pad=20)
     ax_cm.set_xlabel('Predicted Medical Class', fontsize=14, fontweight='bold')
     ax_cm.set_ylabel('True Medical Class', fontsize=14, fontweight='bold')
     
