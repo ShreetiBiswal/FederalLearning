@@ -11,8 +11,10 @@ from calculate_alpha import calculate_alpha
 
 # =====================================================================
 TARGET_ALGORITHMS = [
-    "wsm_hm_class_weighted_nosmote",
-    "scaffold_nosmote"
+    "fedavg_nosmote",
+    "wsm_ce_fedavg_nosmote",
+    "scaffold_nosmote",
+    "wsm_hm_class_weighted_nosmote"
 ]
 # =====================================================================
 
@@ -108,7 +110,9 @@ HTML_STYLE = """
     border-radius: 3px;
     font-weight: bold;
   }
-  .badge.alpha { background: #D85A30; }
+  .badge.alpha {
+    background: #D85A30; 
+    text-transform: none;}
 
   /* ── Absolute Bottom Anchored Footers ── */
   .cover-footer {
@@ -364,13 +368,15 @@ def generate_master_report(iid=False):
         alpha_val = None
 
     if alpha_val == "∞":
-        alpha_html = '<div class="badge alpha">Dirichlet α = ∞</div>'
+        # Use &alpha; for α and &infin; for ∞
+        alpha_html = '<div class="badge alpha">Dirichlet &alpha; = &infin;</div>'
         data_type = "IID (Perfectly Balanced)"
     elif isinstance(alpha_val, float):
-        alpha_html = f'<div class="badge alpha">Dirichlet α ≈ {alpha_val:.3f}</div>'
-        if(alpha_val>=1):
+        # Use &alpha; for α and &approx; for ≈
+        alpha_html = f'<div class="badge alpha">Dirichlet &alpha; &approx; {alpha_val:.3f}</div>'
+        if(alpha_val >= 1):
             data_type = "IID (Perfectly Balanced)"
-        elif(alpha_val <1 and alpha_val>0.1):
+        elif(alpha_val < 1 and alpha_val > 0.1):
             data_type = "Non-IID (Highly Skewed)"
         else:
             data_type = "EXTREME HETEROGENEITY (Highly Non-IID)"
@@ -522,7 +528,9 @@ def generate_master_report(iid=False):
 </html>"""
 
     output_filename = f"master_report{suffix}.html"
-    report_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', output_filename))
+    
+    # Removed the '..' so it saves in the current script's directory
+    report_path = os.path.abspath(os.path.join(os.path.dirname(__file__), output_filename))
 
     with open(report_path, 'w', encoding='utf-8') as f:
         f.write(html)
