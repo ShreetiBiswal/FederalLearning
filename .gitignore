@@ -24,6 +24,7 @@ yarn-error.log*
 # --- Metrics, Results & Weights ---
 # Keep these if you want to track your progress, 
 # but ignore them if you want a clean repo for every run.
+*.html
 *.csv
 *.png
 GraphPlotter/plots/
@@ -32,6 +33,7 @@ GraphPlotter/plots/
 final_master_model_*.json
 
 # --- IDE & System ---
+logs
 .vscode/
 .idea/
 .DS_Store
