@@ -1,15 +1,18 @@
 # Federated Learning Framework for Skewed Medical Data
 
-> **Overview**: A custom Federated Learning (FL) architecture designed to tackle catastrophic gradient explosion and client drift in highly skewed (**Non-IID**) environments. It introduces the **Harmonic Mean Class-Weighted (WSM-HM)** aggregation algorithm to protect minority hospitals with rare diseases from being overwritten by majority dictator nodes, and compares it against standard **IID** baselines.
+> **Overview**: A custom Federated Learning (FL) architecture designed to tackle catastrophic gradient explosion and client drift in highly skewed (**Non-IID**) environments. It utilizes advanced mathematical aggregations like **Harmonic Mean Class-Weighted (WSM-HM)** and **SCAFFOLD** to protect minority hospitals with rare diseases from being overwritten by majority dictator nodes, and compares them against standard **FedAvg** baselines.
+
+This project is specifically engineered for **Full-Participation Cross-Silo FL environments** (e.g., sophisticated hospital networks) running heavily on secure **CPU-bound** computational pipelines.
 
 ---
 
 ## 🏗️ Architecture
 
-This project uses a hybrid architecture:
-* **Central Aggregator (Server)**: A Node.js `socket.io` server responsible for routing, receiving weights, and calculating advanced mathematical aggregations (FedAvg, Class-Weighted, Harmonic Mean).
-* **Hospital Nodes (Clients)**: Python-based PyTorch clients simulating individual hospitals. They train locally on their isolated data partitions and upload delta weights to the server.
-* **Global Evaluator**: A dedicated Python script that monitors the true global accuracy of the master model on a balanced test set, tracking specific algorithms and parameters.
+This project strictly utilizes a hybrid, full-participation architecture:
+* **Central Aggregator (Server)**: A Node.js `socket.io` server responsible for routing, receiving weights, and calculating advanced global aggregations (`fedavg`, `scaffold`, `wsm_hm_class_weighted`).
+* **Hospital Nodes (Clients)**: Python-based PyTorch clients simulating individual hospitals. They train locally on their isolated data partitions using SGD (no Adam to preserve SCAFFOLD identities) and upload delta weights or control variates to the server.
+* **Global Evaluator**: A dedicated Python script (`server_evaluator.py`) that passively monitors the true global accuracy of the master model on a balanced test set during training.
+* **Automation Orchestrator**: An overarching Python manager (`run_experiments.py`) that automates the deployment of the server, evaluator, and clients simultaneously, managing background processes and logs safely.
 
 ---
 
@@ -18,6 +21,7 @@ This project uses a hybrid architecture:
 ### 1. Prerequisites
 * **Python 3.8+**
 * **Node.js (v16+)** & **npm**
+* **Target Environment:** macOS/CPU-bound compute environment. 
 
 ### 2. Install Dependencies
 ```bash
@@ -30,10 +34,8 @@ cd ..
 pip install -r requirements.txt
 ```
 
-### 3. Initialize Local Databases (IID & Non-IID)
-Run the setup script to partition the datasets and distribute them among the simulated hospitals. 
-* **Non-IID**: Creates highly skewed distributions where some hospitals monopolize rare diseases.
-* **IID**: Creates a perfectly uniform, shuffled baseline distribution.
+### 3. Initialize Local Databases
+Run the setup script to partition the underlying datasets and dynamically distribute them among the simulated hospitals. This creates the highly skewed, Non-IID distributions required for testing.
 
 ```bash
 python setup_local_dbs.py
@@ -41,97 +43,94 @@ python setup_local_dbs.py
 
 ---
 
-## 🧪 Experimental Toggles: SMOTE & Data Distribution
+## 🚀 Execution Guide
 
-Before running the execution steps below, you must decide what type of experiment you are running:
+### Option A: The Automated Master Pipeline (Recommended)
+You do not need to manually spin up terminal windows. A master orchestration script is included to automatically queue, deploy, and evaluate your algorithms over a full 250-round lifecycle.
 
-1. **SMOTE vs. No-SMOTE (`--disable_smote`)**
-   * **With SMOTE (Default)**: Hospitals use Synthetic Minority Over-sampling to artificially balance their local data before training.
-   * **No-SMOTE (`--disable_smote`)**: Forces the algorithm to rely *entirely* on your mathematical WSM architecture to handle the imbalance. (This is where the Harmonic Mean shines).
-2. **Non-IID vs. IID (`--iid`)**
-   * Run your tests in the skewed environment first, then append the `--iid` flag to your clients to prove the algorithm also performs safely in standard uniform environments.
+```bash
+python run_experiments.py
+```
+
+**What this does automatically:**
+1. Spins up the Node.js Server in the background.
+2. Deploys the Python validation Evaluator.
+3. Deploys 4 individual Hospital clients simultaneously.
+4. Funnels all terminal outputs into isolated text files under `./logs/<algo_name>/`.
+5. Runs multiple variations back-to-back (e.g., `fedavg`, `scaffold`, `wsm_hm_class_weighted`).
+6. Triggers `evaluate_final_model.py` and `master_report_generator.py` upon completion.
+
+*Note: If you wish to enable/disable SMOTE or change algorithms, simply edit the `EXPERIMENTS` array at the top of `run_experiments.py`.*
 
 ---
 
-## 🚀 Execution Guide
+### Option B: Manual Debugging Execution
+If you are modifying the code and need to trace errors in real-time, you can run the suite manually by opening **separate terminal windows**.
 
-To run a full Federated Learning training session, open **separate terminal windows** for the Server, Evaluator, and Clients.
-
-### Step 1: Start the Central Server
-The Node.js server will wait for the target number of hospitals (4) to connect before starting Round 1.
+**Step 1: Start the Central Server**
 ```bash
 cd server
 node server.js
 ```
 
-### Step 2: Start the Global Evaluator
-The evaluator MUST be told which algorithm it is tracking so it saves the `final_master_model` and `server_avg_metrics` correctly.
+**Step 2: Start the Global Evaluator**
+Needs to know what algorithm you are tracking so it saves the data correctly.
 ```bash
-# Example for Harmonic Mean without SMOTE
-python server_evaluator.py --algo wsm_hm_class_weighted_nosmote
+python server_evaluator.py --algo wsm_hm_class_weighted
 ```
 
-### Step 3: Start the Hospital Clients
-Run the client node script, specifying the hospital ID, the algorithm, and your experimental toggles. 
+**Step 3: Start the Hospital Clients**
+Run the client node script, specifying the hospital ID and the algorithm:
+* `fedavg`
+* `scaffold`
+* `wsm_class_weighted`
+* `wsm_hm_class_weighted`
 
-**Available Algorithms (`--algo`):**
-* `fedavg`: Standard Federated Averaging.
-* `wsm_class_weighted`: Pure Class-Weighted aggregation (boosts rare diseases).
-* `wsm_hm_class_weighted`: Hybrid Harmonic Mean aggregation (stabilizes gradient explosions).
-
-**Start Hospital 1:**
+*Terminal 3 (Hosp 1):*
 ```bash
 python clients/client_node.py --hospital_id 1 --algo wsm_hm_class_weighted --disable_smote
 ```
-
-**Start Hospital 2:**
+*Terminal 4 (Hosp 2):*
 ```bash
 python clients/client_node.py --hospital_id 2 --algo wsm_hm_class_weighted --disable_smote
 ```
-
-**Start Hospital 3:**
-```bash
-python clients/client_node.py --hospital_id 3 --algo wsm_hm_class_weighted --disable_smote
-```
-
-**Start Hospital 4:**
-```bash
-python clients/client_node.py --hospital_id 4 --algo wsm_hm_class_weighted --disable_smote
-```
-*(Once Hospital 4 connects, Round 1 will begin automatically).*
+*(Repeat for Hospitals 3 and 4...)*
 
 ---
 
-## 📊 Graph Plotting & Evaluation Suite
+## 📊 Evaluation & Graph Plotting
 
-Run these scripts from the `GraphPlotter/` directory **after** your 50 rounds finish to analyze the results.
+Upon the completion of the experiments (either manually or via the Orchestrator), you can generate visual analysis reports. 
 
-### 1. Global Master Model Learning Curve
-**Definition**: Plots the true learning curve of the Global Master Model (Accuracy vs. Loss) across all 50 rounds, comparing IID vs Non-IID or SMOTE vs No-SMOTE.
+### 1. The Master Report
+If you ran `run_experiments.py`, this master script will automatically digest all logs and metrics and generate a final holistic report summary.
+```bash
+python master_report_generator.py
+```
+
+### 2. Visual Graph Suite
+You have a dedicated standalone suite inside `GraphPlotter/` capable of rendering the internal mathematical dynamics. 
+
+**Global Master Model Learning Curve:**
+Plots the true baseline global test curve across all rounds.
 ```bash
 python GraphPlotter/server_global_plot.py
 ```
 
-### 2. Local Hospital Training Performance
-**Definition**: Generates individual performance curves for each specific hospital on their own skewed datasets. Crucial for identifying **Client Drift** and local gradient explosions.
+**Local Hospital Training Performance:**
+Generates individual local training loss/acc curves. Crucial for identifying Client Drift and gradient explosions on pure Non-IID subsets.
 ```bash
 python GraphPlotter/client_local_accuracy_plot.py
 ```
 
-### 3. Average Local Accuracy
-**Definition**: Aggregates and averages the local test accuracies of all hospitals before local training begins, proving whether the newly downloaded global weights benefited the minority hospitals.
-```bash
-python GraphPlotter/average_local_accuracy_plot.py
-```
-
-### 4. Global Confusion Matrix
-**Definition**: Generates a heatmap matrix of predictions vs. true labels. It unveils the "Minority Overcorrection" paradox, proving whether the model learned the rare diseases (True Positives) or blindly guessed them (False Positives).
+**Global Confusion Matrix:**
+Analyzes the final model against a balanced test set to unveil the Minority Overcorrection paradox (distinguishing True rare disease representations against False Positive biases).
 ```bash
 python GraphPlotter/plot_confusion_matrix.py --algo wsm_hm_class_weighted_nosmote
 ```
 
-### 5. Final Results Comparison
-**Definition**: The ultimate thesis defense chart. Visually compares the final Round 50 accuracy of Standard `FedAvg` against your custom algorithms across both IID and Non-IID datasets.
+**Final Results Comparison:**
+A conclusive grouped bar chart directly comparing the final Round 250 accuracy of Standard `FedAvg` against `SCAFFOLD` and the advanced `WSM-HM` custom architecture.
 ```bash
 python GraphPlotter/plot_final_results.py
 ```
