@@ -11,6 +11,9 @@ import { aggregateWSMClassWeighted } from "./aggregators/wsm_class_weighted.js";
 import { aggregateSCAFFOLD } from "./aggregators/scaffold.js";
 import { aggregateErrorAwareHarmonic } from "./aggregators/wsm_harmonic.js";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const server = createServer(app);
 
@@ -30,8 +33,8 @@ let globalControlVariateState = null; // SCAFFOLD state memory
 
 // --- Initialize CSV File ---
 // --- Initialize Folders & CSV File ---
-const SERVER_AVG_DIR = "./serverAvgMetrics";
-const MODELS_DIR = "./models";
+const SERVER_AVG_DIR = path.join(__dirname, "serverAvgMetrics");
+const MODELS_DIR = path.join(__dirname, "models");
 
 if (!fs.existsSync(SERVER_AVG_DIR))
   fs.mkdirSync(SERVER_AVG_DIR, { recursive: true });
