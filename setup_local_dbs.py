@@ -139,6 +139,6 @@ if __name__ == "__main__":
     generate_hospital_databases(
         dataset_name='pathmnist', 
         num_hospitals=4, 
-        hospital_proportions=[0.60, 0.20, 0.15, 0.05], 
-        iid=True 
+        hospital_proportions=[0.25, 0.25, 0.25, 0.25], 
+        iid=False 
     )
