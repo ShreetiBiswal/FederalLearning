@@ -42,8 +42,10 @@ def run_scaffold(model, train_loader, global_c, local_c, epochs=3, lr=0.001, dev
                         # Apply the correction to the gradient physically
                         param.grad.data += (c_global_tensor - c_local_tensor)
             
-            # Prevent exploding gradients (Keep your shield!)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # 🔥 CRITICAL FIX: Removed gradient clipping.
+            # Gradient clipping dynamically scales the learning step, breaking 
+            # the fundamental Option II math identity: weight_diff == -lr * sum(gradients).
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             
             optimizer.step()
             num_steps += 1
@@ -64,7 +66,11 @@ def run_scaffold(model, train_loader, global_c, local_c, epochs=3, lr=0.001, dev
     # Note: Adam's effective step is complex, but using raw lr * steps is the standard approximation
     effective_lr = num_steps * lr 
     
-    for name in global_model_weights.keys():
+    # 🔥 CRITICAL FIX: Only track control variates for actual trainable parameters!
+    # Buffers (like BatchNorm running_mean) update via EMA, not gradients, making Option II invalid for them.
+    trainable_names = [name for name, param in model.named_parameters() if param.requires_grad]
+    
+    for name in trainable_names:
         x_global = global_model_weights[name].to(device)
         y_local = new_weights[name].to(device)
         
