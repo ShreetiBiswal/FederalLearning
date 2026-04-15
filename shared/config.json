@@ -1,0 +1,6 @@
+{
+  "DATASET_NAME": "PathMNIST",
+  "NUM_CLASSES": 9,
+  "IN_CHANNELS": 3,
+  "IMAGE_SIZE": 28
+}
