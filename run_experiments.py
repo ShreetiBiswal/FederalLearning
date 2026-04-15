@@ -29,14 +29,13 @@ def run_experiment(algo, disable_smote):
     print(f"{'='*60}")
 
     try:
-        # 1. Start the Node.js Server
+        
         print("[1] Starting Node.js Aggregator Server... (Running in background)")
         server_log = open(os.path.join(log_dir, "server.log"), "w")
         file_handles.append(server_log)
-         # 🔥 FIX: Run the node server from INSIDE the server folder
+
         server_process = subprocess.Popen(
-            ["node", "server.js"], 
-            cwd="server",
+            ["node", "server/server.js"], 
             stdout=server_log, 
             stderr=subprocess.STDOUT
         )
