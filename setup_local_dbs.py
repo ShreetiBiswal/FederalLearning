@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # To run perfectly IID, simply set iid=True. 
     # (The 'alpha' parameter is ignored when iid=True)
     generate_hospital_databases(
-        dataset_name='pathmnist', 
+        dataset_name='pneumoniamnist', 
         num_hospitals=4, 
         hospital_proportions=[0.25, 0.25, 0.25, 0.25], 
         iid=False 
