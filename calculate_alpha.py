@@ -1,11 +1,12 @@
 import numpy as np
 import os
+from shared.config import FL_CONFIG
 
 def calculate_alpha():
     print("========== 📊 DIRICHLET ALPHA ESTIMATOR ==========")
     
     num_hospitals = 4
-    num_classes = 9
+    num_classes = FL_CONFIG["NUM_CLASSES"]
     
     # 1. Store the distribution of classes for each hospital
     # Shape will be (4 hospitals, 9 classes)

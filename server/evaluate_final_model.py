@@ -31,6 +31,7 @@ sys.path.append(os.path.join(root_dir, 'clients'))
 from shared.cnn_model import GenericClientModel
 from shared.tensor_utils import json_ready_to_state_dict
 from clients.data_loader import get_global_val_loader
+from shared.config import FL_CONFIG
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate the final aggregated JSON model.")
@@ -58,11 +59,15 @@ def main():
     
     state_dict = json_ready_to_state_dict(json_weights)
 
-    in_channels = 3  
-    num_classes = 9
+    in_channels = FL_CONFIG["IN_CHANNELS"]
+    num_classes = FL_CONFIG["NUM_CLASSES"]
     
     print("   [⚙️] Initializing CNN and injecting master weights...")
-    model = GenericClientModel(in_channels=in_channels, num_classes=num_classes)
+    model = GenericClientModel(
+        in_channels=in_channels, 
+        num_classes=num_classes,
+        image_size=FL_CONFIG["IMAGE_SIZE"]
+    )
     model.load_state_dict(state_dict)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

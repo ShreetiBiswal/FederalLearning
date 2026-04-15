@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+from shared.config import FL_CONFIG
 
 def run_wsm_class_weighted(model, train_loader, epochs=2, lr=0.001, device='cpu'):
     print("\n   [🧠] Initializing WSM (Class-Weighted) Local Training...")
@@ -13,7 +14,7 @@ def run_wsm_class_weighted(model, train_loader, epochs=2, lr=0.001, device='cpu'
     for _, labels in train_loader:
         all_labels.extend(labels.tolist())
     
-    num_classes = 9
+    num_classes = FL_CONFIG["NUM_CLASSES"]
     class_counts = np.bincount(all_labels, minlength=num_classes)
     total_samples = len(all_labels)
     

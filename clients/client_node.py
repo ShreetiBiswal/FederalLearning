@@ -19,6 +19,7 @@ from trainers.fedavg import run_fedavg
 from trainers.wsm_ce_fedavg import run_wsm_ce_fedAvg
 from trainers.wsm_class_weighted import run_wsm_class_weighted
 from trainers.scaffold import run_scaffold  # 🔥 NEW: Import SCAFFOLD
+from shared.config import FL_CONFIG
 
 # --- 1. Global State & Synchronization ---
 sio = socketio.Client()
@@ -124,7 +125,7 @@ def main():
         use_smote=not args.disable_smote 
     )
     dataset_size = len(train_loader.dataset)
-    num_classes = 9
+    num_classes = FL_CONFIG["NUM_CLASSES"]
 
     # --- Setup the Local CSV Logger ---
     folder_suffix = "_nosmote" if args.disable_smote else ""
@@ -139,8 +140,11 @@ def main():
             f.write("Round,Accuracy,Loss\n")
 
     # B. Initialize the Model (Shared Initialization)
-    torch.manual_seed(42)
-    model = GenericClientModel(in_channels=in_channels, num_classes=num_classes)
+    model = GenericClientModel(
+        in_channels=in_channels, 
+        num_classes=num_classes, 
+        image_size=FL_CONFIG["IMAGE_SIZE"]
+    )
 
     # C. Connect to the Central Aggregator
     try:

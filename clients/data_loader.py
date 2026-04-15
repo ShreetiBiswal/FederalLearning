@@ -5,6 +5,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 # Import the standalone balancing module we built earlier
 from data_balancer import detect_and_balance
+from shared.config import FL_CONFIG
 
 def format_images_for_pytorch(raw_images):
     """ Helper to swap channels and normalize pixels to [-1.0, 1.0] """
@@ -17,7 +18,8 @@ def format_images_for_pytorch(raw_images):
     return (tensor_x - 0.5) / 0.5
 
 # --- 1. The Local (Private) Data Loader ---
-def get_local_hospital_loader(hospital_id, num_classes=9, batch_size=8, use_smote=True): 
+def get_local_hospital_loader(hospital_id, num_classes=None, batch_size=8, use_smote=True): 
+    num_classes = num_classes or FL_CONFIG["NUM_CLASSES"]
     print(f"\n📂 [Data Loader] Accessing private database for Hospital {hospital_id}...")
     
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -75,7 +77,8 @@ def get_global_val_loader(batch_size=16):
 
 
 # --- 3. The Dummy Loader (For rapid testing) ---
-def get_dummy_loaders(hospital_id, num_classes=9, batch_size=5):
+def get_dummy_loaders(hospital_id, num_classes=None, batch_size=5):
+    num_classes = num_classes or FL_CONFIG["NUM_CLASSES"]
     """ Generates fake data for Train and Val to test the pipeline instantly. """
     print(f"\n🧪 [Dummy Loader] Generating fake dataset for Hospital {hospital_id}...")
     
@@ -87,7 +90,7 @@ def get_dummy_loaders(hospital_id, num_classes=9, batch_size=5):
     val_dataset = TensorDataset(torch.randn(5, 3, 28, 28), torch.randint(0, num_classes, (5,)))
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     
-    in_channels = 3 
+    in_channels = FL_CONFIG["IN_CHANNELS"]
     print("   ✅ Dummy Loaders ready!")
     
     # Returns 3 things to match our new logic!

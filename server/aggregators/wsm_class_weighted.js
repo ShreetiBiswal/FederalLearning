@@ -1,8 +1,11 @@
 import { deepScale, deepAdd } from '../utils/tensorUtils.js';
+import fs from 'fs';
+
+const config = JSON.parse(fs.readFileSync('../shared/config.json', 'utf8'));
 
 export function aggregateWSMClassWeighted(updates) {
     console.log("\n========== ⚖️ INITIATING CLASS-WEIGHTED AGGREGATION ==========");
-    const C = 9; // Total medical classes
+    const C = config.NUM_CLASSES; // Total medical classes
     let global_class_counts = new Array(C).fill(0);
 
     // 1. Calculate the Global Denominator (Total world data for each disease)

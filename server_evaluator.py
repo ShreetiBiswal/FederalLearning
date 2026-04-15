@@ -10,8 +10,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), 'clients
 from shared.cnn_model import GenericClientModel
 from shared.tensor_utils import json_ready_to_state_dict
 
-# Import the global data loader
 from clients.data_loader import get_global_val_loader
+from shared.config import FL_CONFIG
 
 # --- Global State ---
 sio = socketio.Client()
@@ -93,8 +93,8 @@ def main():
 
     # 1. Load the pristine Global Validation Data
     val_loader = get_global_val_loader(batch_size=32)
-    in_channels = 3 
-    num_classes = 9
+    in_channels = FL_CONFIG["IN_CHANNELS"] 
+    num_classes = FL_CONFIG["NUM_CLASSES"]
 
     # 2. Setup the "True" Metrics CSV (Creates it with the new header if missing)
     if not os.path.exists(csv_filename):
@@ -102,7 +102,11 @@ def main():
             f.write("Algorithm,Round,Accuracy,Loss\n")
 
     # 3. Initialize the Empty Model
-    model = GenericClientModel(in_channels=in_channels, num_classes=num_classes)
+    model = GenericClientModel(
+        in_channels=in_channels, 
+        num_classes=num_classes,
+        image_size=FL_CONFIG["IMAGE_SIZE"]
+    )
 
     # 4. Connect to Server and Wait Silently
     try:

@@ -1,8 +1,11 @@
-import { deepScale, deepAdd } from '../utils/tensorUtils.js';
+import { deepScale, deepAdd, deepHarmonicMean } from '../utils/tensorUtils.js';
+import fs from 'fs';
+
+const config = JSON.parse(fs.readFileSync('../shared/config.json', 'utf8'));
 
 export function aggregateErrorAwareHarmonic(updates) {
     console.log("\n========== ⚖️ INITIATING STABILIZED ERROR-AWARE AGGREGATION ==========");
-    const C = 9; 
+    const C = config.NUM_CLASSES; 
     let global_class_counts = new Array(C).fill(0);
 
     // 1. Calculate absolute global class counts

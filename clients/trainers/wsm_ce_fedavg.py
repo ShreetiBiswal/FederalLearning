@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from shared.config import FL_CONFIG
 
 class WSMCrossEntropyLoss(nn.Module):
     """
@@ -28,10 +29,11 @@ class WSMCrossEntropyLoss(nn.Module):
         adjusted_logits = logits + self.log_beta
         return F.cross_entropy(adjusted_logits, targets)
 
-def calculate_local_beta(data_loader, num_classes=9):
+def calculate_local_beta(data_loader, num_classes=None):
     """
     Calculates the proportion (beta) of each class present in the local dataset.
     """
+    num_classes = num_classes or FL_CONFIG["NUM_CLASSES"]
     class_counts = torch.zeros(num_classes)
     total_samples = 0
     
