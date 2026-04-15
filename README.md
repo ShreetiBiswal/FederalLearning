@@ -94,7 +94,14 @@ python clients/client_node.py --hospital_id 1 --algo wsm_hm_class_weighted --dis
 ```bash
 python clients/client_node.py --hospital_id 2 --algo wsm_hm_class_weighted --disable_smote
 ```
-*(Repeat for Hospitals 3 and 4...)*
+*(Repeat for Hospitals 3 and 4. Once Hospital 4 connects, Round 1 will begin automatically).*
+
+**Step 4: Run Final Evaluation (Generates Confusion Matrix Data)**
+Once the server announces the final round is complete and writes `final_master_model.json`, you must run the evaluator script to generate the final matrices and accuracy CSVs.
+```bash
+python server/evaluate_final_model.py --algo wsm_hm_class_weighted_nosmote
+```
+This script evaluates the model on the pristine test set, outputs the final official accuracy, and exports the raw `confusion_matrix.csv` data to the `server/confusionMatrix/` folder for plotting.
 
 ---
 
