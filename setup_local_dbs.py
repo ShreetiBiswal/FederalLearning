@@ -2,6 +2,7 @@ import os
 import numpy as np
 import medmnist
 from medmnist import INFO
+from shared.config import FL_CONFIG
 
 def generate_hospital_databases(dataset_name='pathmnist', num_hospitals=4, alpha=0.05, hospital_proportions=None, iid=False):
     distribution_type = "IID (Uniform)" if iid else f"STRICT DIRICHLET Skewed (Alpha={alpha})"
@@ -137,8 +138,8 @@ if __name__ == "__main__":
     # To run perfectly IID, simply set iid=True. 
     # (The 'alpha' parameter is ignored when iid=True)
     generate_hospital_databases(
-        dataset_name='pneumoniamnist', 
+        dataset_name=FL_CONFIG["DATASET_NAME"] or 'pneumoniamnist', 
         num_hospitals=4, 
-        hospital_proportions=[0.25, 0.25, 0.25, 0.25], 
+        hospital_proportions=[0.45, 0.25, 0.20, 0.10], 
         iid=False 
     )

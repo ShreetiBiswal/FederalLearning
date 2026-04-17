@@ -8,9 +8,11 @@ def calculate_alpha():
     num_hospitals = 4
     num_classes = FL_CONFIG["NUM_CLASSES"]
     
-    # 1. Store the distribution of classes for each hospital
-    # Shape will be (4 hospitals, 9 classes)
+    # 1. Store the distribution of classes for each hospital (m x n)
     distributions = np.zeros((num_hospitals, num_classes))
+    
+    # New: Store the total dataset size for each hospital
+    client_sizes = np.zeros(num_hospitals, dtype=int)
     
     # 2. Read the labels from each hospital's folder
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), 'clients'))
@@ -28,17 +30,16 @@ def calculate_alpha():
             
             # Convert to proportions (e.g., 0.45 of dataset is Class 0)
             proportions = counts / total_samples
+            
             distributions[i-1] = proportions
+            client_sizes[i-1] = total_samples
             
         except FileNotFoundError:
             print(f"[🚨] ERROR: Could not find labels for Hospital {i} at {label_file}")
-            return
+            return None, None, None
 
     # 3. Calculate the Sample Variance across the hospitals
-    # We look at how much each class's proportion varies down the columns
     variances = np.var(distributions, axis=0, ddof=1)
-    
-    # Get the average variance across all 9 classes
     mean_variance = np.mean(variances)
     
     # 4. Method of Moments calculation for Alpha
@@ -46,13 +47,10 @@ def calculate_alpha():
     
     if mean_variance == 0:
         print("\n[✅] Variance is 0. Data is perfectly IID. Alpha approaches Infinity.")
-        return "∞"  # 👇 ADD THIS
+        estimated_alpha = "∞"
     else:
         estimated_alpha = (1.0 / num_classes) * (((p * (1 - p)) / mean_variance) - 1)
-        estimated_alpha = max(0.001, estimated_alpha)
-        
-        # Alpha cannot be mathematically negative; if it is, the data is 
-        # more disjointed than a standard Dirichlet can model.
+        # Alpha cannot be mathematically negative; threshold it
         estimated_alpha = max(0.001, estimated_alpha)
 
         print(f"\n[📈] Mean Class Variance: {mean_variance:.4f}")
@@ -64,8 +62,12 @@ def calculate_alpha():
             print("   -> 📊 MODERATE HETEROGENEITY")
         else:
             print("   -> 🟢 LOW HETEROGENEITY (Near IID)")
-        
-        return estimated_alpha
+            
+    # Return Alpha, the m x n distribution matrix, and the array of dataset sizes
+    return estimated_alpha, distributions, client_sizes
 
 if __name__ == '__main__':
-    calculate_alpha()
+    alpha, dists, sizes = calculate_alpha()
+    if alpha is not None:
+        print(f"\nSizes per client: {sizes}")
+        print(f"\nDis:- {dists}")

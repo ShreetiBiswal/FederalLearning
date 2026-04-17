@@ -1,6 +1,6 @@
 {
-  "DATASET_NAME": "",
-  "NUM_CLASSES": 2,
-  "IN_CHANNELS": 1,
+  "DATASET_NAME": "bloodmnist",
+  "NUM_CLASSES": 8,
+  "IN_CHANNELS": 3,
   "IMAGE_SIZE": 28
 }

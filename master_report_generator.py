@@ -22,7 +22,6 @@ HTML_STYLE = """
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  /* ── Screen styles ── */
   body {
     font-family: "Georgia", "Times New Roman", serif;
     background: #F5F4F0;
@@ -31,34 +30,20 @@ HTML_STYLE = """
     line-height: 1.75;
   }
 
-  .page-wrap {
-    max-width: 960px;
-    margin: 48px auto;
-  }
+  .page-wrap { max-width: 960px; margin: 48px auto; }
 
-  /* Each .page is a distinct white card on screen */
   .page {
     background: #FFFFFF;
     border: 1px solid #D8D5CC;
-    /* Bottom padding is increased to give the absolute footer room to breathe */
     padding: 64px 72px 100px 72px; 
     margin-bottom: 32px;
     position: relative;
     min-height: 85vh; 
   }
 
-  /* ── Enhanced Cover Layout ── */
-  .page.cover {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .cover-center {
-    margin: auto 0;
-    text-align: center;
-    padding-bottom: 40px; /* Balance the vertical space */
-  }
-
+  .page.cover { display: flex; flex-direction: column; }
+  .cover-center { margin: auto 0; text-align: center; padding-bottom: 40px; }
+  
   .cover-inner {
     border-top: 3px solid #1a1a1a;
     border-bottom: 3px solid #1a1a1a;
@@ -92,13 +77,7 @@ HTML_STYLE = """
     margin-bottom: 32px;
   }
 
-  .badge-container {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 10px;
-  }
-
+  .badge-container { display: flex; justify-content: center; gap: 12px; margin-top: 10px; }
   .badge {
     font-family: "Helvetica Neue", Arial, sans-serif;
     font-size: 12px;
@@ -110,11 +89,8 @@ HTML_STYLE = """
     border-radius: 3px;
     font-weight: bold;
   }
-  .badge.alpha {
-    background: #D85A30; 
-    text-transform: none;}
+  .badge.alpha { background: #D85A30; text-transform: none; }
 
-  /* ── Absolute Bottom Anchored Footers ── */
   .cover-footer {
     border-top: 2px solid #1a1a1a;
     padding-top: 20px;
@@ -124,25 +100,14 @@ HTML_STYLE = """
     font-family: "Helvetica Neue", Arial, sans-serif;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    /* Forces footer to the absolute bottom of the container */
     position: absolute;
     bottom: 64px;
     left: 72px;
     right: 72px;
   }
-  .cover-footer > div:first-child {
-    text-align: left;
-  }
-  .cover-footer strong {
-    font-size: 12px;
-    color: #111;
-    display: block;
-    margin-bottom: 4px;
-  }
-  .cover-footer span {
-    font-size: 11px;
-    color: #666;
-  }
+  .cover-footer > div:first-child { text-align: left; }
+  .cover-footer strong { font-size: 12px; color: #111; display: block; margin-bottom: 4px; }
+  .cover-footer span { font-size: 11px; color: #666; }
 
   .page-footer {
     border-top: 1px solid #E0DDD5;
@@ -152,7 +117,6 @@ HTML_STYLE = """
     color: #AAA;
     display: flex;
     justify-content: space-between;
-    /* Forces footer to the absolute bottom of the container */
     position: absolute;
     bottom: 64px;
     left: 72px;
@@ -176,11 +140,7 @@ HTML_STYLE = """
     padding-bottom: 10px;
     margin-bottom: 32px;
   }
-  .toc ol {
-    padding-left: 0;
-    list-style: none;
-    counter-reset: toc-counter;
-  }
+  .toc ol { padding-left: 0; list-style: none; counter-reset: toc-counter; }
   .toc li {
     counter-increment: toc-counter;
     display: flex;
@@ -197,16 +157,8 @@ HTML_STYLE = """
     color: #999;
     min-width: 28px;
   }
-  .toc li .toc-dots {
-    flex: 1;
-    border-bottom: 1px dotted #CCC;
-    margin: 0 10px 4px;
-  }
-  .toc li .toc-page-num {
-    font-family: "Helvetica Neue", Arial, sans-serif;
-    font-size: 12px;
-    color: #999;
-  }
+  .toc li .toc-dots { flex: 1; border-bottom: 1px dotted #CCC; margin: 0 10px 4px; }
+  .toc li .toc-page-num { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12px; color: #999; }
   .toc a { color: inherit; text-decoration: none; }
   .toc a:hover { text-decoration: underline; }
 
@@ -246,96 +198,44 @@ HTML_STYLE = """
     letter-spacing: 0.1em;
   }
 
-  /* ── Figures ── */
-  figure {
-    margin: 24px 0 48px 0;
-    text-align: center;
-  }
-  figure img {
-    max-width: 100%;
-    height: auto;
-    border: 1px solid #E0DDD5;
-    display: block;
-    margin: 0 auto;
-  }
-  figcaption {
+  /* ── Data Distribution Table ── */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 24px 0;
     font-family: "Helvetica Neue", Arial, sans-serif;
     font-size: 12px;
+  }
+  .data-table th, .data-table td {
+    border: 1px solid #D0CEC8;
+    padding: 10px 6px;
+    text-align: center;
+  }
+  .data-table th {
+    background-color: #F5F4F0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 10px;
     color: #666;
-    margin-top: 12px;
-    font-style: italic;
-    line-height: 1.5;
   }
+  .data-table td.client-col { text-align: left; font-weight: bold; background: #fff; color: #111;}
+  .data-table td.total-col { font-weight: bold; background: #FAFAFA; color: #444; }
 
-  /* ── Error ── */
-  .error-notice {
-    font-family: "Helvetica Neue", Arial, sans-serif;
-    font-size: 13px;
-    color: #8B2020;
-    background: #FDF4F4;
-    border-left: 3px solid #C0392B;
-    padding: 12px 16px;
-  }
+  figure { margin: 24px 0 48px 0; text-align: center; }
+  figure img { max-width: 100%; height: auto; border: 1px solid #E0DDD5; display: block; margin: 0 auto; }
+  figcaption { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12px; color: #666; margin-top: 12px; font-style: italic; line-height: 1.5; }
 
-  /* ══════════════════════════════════════════════
-     PRINT / PDF RULES
-     ══════════════════════════════════════════════ */
+  .error-notice { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 13px; color: #8B2020; background: #FDF4F4; border-left: 3px solid #C0392B; padding: 12px 16px; }
+
   @media print {
-    @page {
-      size: A4;
-      margin: 15mm;
-    }
-
-    html, body {
-      background: #fff;
-      font-size: 12px; 
-      margin: 0 !important;
-      padding: 0 !important;
-    }
-
-    .page-wrap {
-      margin: 0;
-      padding: 0;
-      max-width: 100%;
-    }
-
-    .page {
-      border: none;
-      /* Keep 15mm space at the bottom so content never touches the footer */
-      padding: 0 0 15mm 0 !important; 
-      margin: 0 !important;
-      page-break-before: always; 
-      break-before: page;
-      page-break-inside: auto;
-      
-      position: relative;
-      /* Magic Number: Forces every page to be EXACTLY the height of an A4 sheet */
-      min-height: 266mm; 
-    }
-
-    .page-wrap > .page:first-of-type {
-      page-break-before: avoid !important;
-      break-before: avoid !important;
-    }
-
-    /* Snaps the footers to the absolute 0px bottom of the A4 height */
-    .cover-footer, .page-footer {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-    }
-
-    figure {
-      page-break-inside: avoid;
-      break-inside: avoid;
-      margin-bottom: 15px;
-    }
-
-    h2, h3, h4 {
-      page-break-after: avoid;
-      break-after: avoid;
-    }
+    @page { size: A4; margin: 15mm; }
+    html, body { background: #fff; font-size: 12px; margin: 0 !important; padding: 0 !important; }
+    .page-wrap { margin: 0; padding: 0; max-width: 100%; }
+    .page { border: none; padding: 0 0 15mm 0 !important; margin: 0 !important; page-break-before: always; break-before: page; position: relative; min-height: 266mm; }
+    .page-wrap > .page:first-of-type { page-break-before: avoid !important; break-before: avoid !important; }
+    .cover-footer, .page-footer { position: absolute; bottom: 0; left: 0; right: 0; }
+    figure { page-break-inside: avoid; break-inside: avoid; margin-bottom: 15px; }
+    h2, h3, h4 { page-break-after: avoid; break-after: avoid; }
   }
 </style>
 """
@@ -345,7 +245,6 @@ def img_tag(b64, alt):
         return f'<img src="data:image/png;base64,{b64}" alt="{alt}">'
     return f'<div class="error-notice">Figure not available: {alt}</div>'
 
-
 def page_footer(label, timestamp):
     return f"""
     <div class="page-footer">
@@ -354,25 +253,63 @@ def page_footer(label, timestamp):
       <span>{timestamp}</span>
     </div>"""
 
+def generate_heatmap_table(distributions, client_sizes):
+    if distributions is None or client_sizes is None:
+        return '<div class="error-notice">Training data distribution metrics could not be loaded.</div>'
+    
+    num_clients, num_classes = distributions.shape
+    
+    html = '<table class="data-table">\n'
+    html += '  <thead>\n    <tr>\n      <th>Client Node</th>\n      <th>Total Samples</th>\n'
+    for j in range(num_classes):
+        html += f'      <th>Class {j}</th>\n'
+    html += '    </tr>\n  </thead>\n  <tbody>\n'
+    
+    for i in range(num_clients):
+        html += '    <tr>\n'
+        html += f'      <td class="client-col">Hospital {i+1}</td>\n'
+        html += f'      <td class="total-col">{client_sizes[i]:,}</td>\n'
+        for j in range(num_classes):
+            prop = distributions[i, j]
+            # Heatmap logic: higher proportion = deeper color
+            if prop == 0:
+                bg_color = "#F9F9F9"
+                text_color = "#CCC"
+            else:
+                # Calculate alpha channel based on proportion (capped at 0.9 for readability)
+                bg_alpha = min(0.9, max(0.1, prop * 1.5))
+                bg_color = f"rgba(216, 90, 48, {bg_alpha})"
+                text_color = "#FFF" if bg_alpha > 0.5 else "#111"
+                
+            html += f'      <td style="background-color: {bg_color}; color: {text_color};">{prop:.1%}</td>\n'
+        html += '    </tr>\n'
+        
+    html += '  </tbody>\n</table>\n'
+    return html
 
 def generate_master_report(iid=False):
+    
+    try:
+        from shared.config import FL_CONFIG
+        dataset_name = str(FL_CONFIG.get("DATASET_NAME", "MedMNIST Dataset")).upper()
+    except ImportError:
+        dataset_name = "MEDMNIST DATASET"
+
     algorithms = TARGET_ALGORITHMS
     data_type  = "IID (Perfectly Balanced)" if iid else "Non-IID (Highly Skewed)"
     suffix     = "_iid" if iid else ""
     timestamp  = datetime.now().strftime("%B %d, %Y")
 
     try:
-        alpha_val = calculate_alpha()
+        alpha_val, dists, sizes = calculate_alpha()
     except Exception as e:
         print(f"⚠️  Could not calculate alpha: {e}")
-        alpha_val = None
+        alpha_val, dists, sizes = None, None, None
 
     if alpha_val == "∞":
-        # Use &alpha; for α and &infin; for ∞
         alpha_html = '<div class="badge alpha">Dirichlet &alpha; = &infin;</div>'
         data_type = "IID (Perfectly Balanced)"
     elif isinstance(alpha_val, float):
-        # Use &alpha; for α and &approx; for ≈
         alpha_html = f'<div class="badge alpha">Dirichlet &alpha; &approx; {alpha_val:.3f}</div>'
         if(alpha_val >= 1):
             data_type = "IID (Perfectly Balanced)"
@@ -443,13 +380,16 @@ def generate_master_report(iid=False):
           <span class="toc-page-num">{pg}</span>
         </li>""" for i, (title, pg) in enumerate(toc_entries))
 
+    # Generate the heatmap table dynamically
+    dataset_table_html = generate_heatmap_table(dists, sizes)
+
     # ── Full HTML ─────────────────────────────────────────────────────────────
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FL Evaluation Report — {data_type}</title>
+  <title>FL Evaluation Report — {dataset_name} | {data_type}</title>
   {HTML_STYLE}
 </head>
 <body>
@@ -461,6 +401,7 @@ def generate_master_report(iid=False):
           <div class="kicker">Technical Evaluation Report</div>
           <h1>Federated Learning Evaluation<br>Across Heterogeneous Medical Data</h1>
           <div class="subtitle">
+          <strong>Target Dataset: {dataset_name}</strong><br><br>
             Comparative Analysis of Aggregation Algorithms<br>
             under {data_type} Conditions
           </div>
@@ -476,7 +417,6 @@ def generate_master_report(iid=False):
         <span>{timestamp}</span>
       </div>
     </div>
-  </div>
 
   <div class="page toc-page">
     <div class="toc-heading">Contents</div>
@@ -491,29 +431,35 @@ def generate_master_report(iid=False):
     <div class="section-number">Section 1</div>
     <h2>Global Performance & Aggregation Metrics</h2>
     
-    <h3>1.1 Final Global Model Performance</h3>
+    <h3>1.1 Training Data Distribution</h3>
+    <p style="font-size: 13px; color: #444; margin-bottom: 12px;">
+      The table below illustrates the local data distribution for each client node prior to training. 
+    </p>
+    {dataset_table_html}
+
+    <h3>1.2 Final Global Model Performance</h3>
     <figure>
       {img_tag(img_final, "Final global model performance")}
       <figcaption>
-        Figure 1.1 — Final accuracy and cross-entropy loss of each algorithm's global model
+        Figure 1.2 — Final accuracy and cross-entropy loss of each algorithm's global model
         after all communication rounds have completed.
       </figcaption>
     </figure>
 
-    <h3>1.2 True Global Evaluation (Validation Set)</h3>
+    <h3>1.3 True Global Evaluation (Validation Set)</h3>
     <figure>
       {img_tag(img_true_global, "True global evaluation metrics")}
       <figcaption>
-        Figure 1.2 — Accuracy and loss of each algorithm measured on a centralised
+        Figure 1.3 — Accuracy and loss of each algorithm measured on a centralised
         held-out validation set over all communication rounds.
       </figcaption>
     </figure>
 
-    <h3>1.3 Server-Side Aggregation Metrics</h3>
+    <h3>1.4 Server-Side Aggregation Metrics</h3>
     <figure>
       {img_tag(img_server, "Server aggregation metrics")}
       <figcaption>
-        Figure 1.3 — Weighted-average accuracy and loss reported by the aggregation
+        Figure 1.4 — Weighted-average accuracy and loss reported by the aggregation
         server across all communication rounds.
       </figcaption>
     </figure>
@@ -528,8 +474,6 @@ def generate_master_report(iid=False):
 </html>"""
 
     output_filename = f"master_report{suffix}.html"
-    
-    # Removed the '..' so it saves in the current script's directory
     report_path = os.path.abspath(os.path.join(os.path.dirname(__file__), output_filename))
 
     with open(report_path, 'w', encoding='utf-8') as f:
@@ -537,7 +481,6 @@ def generate_master_report(iid=False):
 
     print(f"\n[✅] Report saved to: {report_path}")
     print("    To export as PDF: open in Chrome → Print → Save as PDF → set margins to Default/None.\n")
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate Master HTML Research Report.")
