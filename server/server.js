@@ -11,6 +11,7 @@ import { aggregateWSMClassWeighted } from "./aggregators/wsm_class_weighted.js";
 //import { aggregateWSMHarmonicClassWeighted } from './aggregators/wsm_harmonic.js';
 import { aggregateSCAFFOLD } from "./aggregators/scaffold.js";
 import { aggregateErrorAwareHarmonic } from "./aggregators/wsm_harmonic.js";
+import { FL_CONFIG } from "./config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,8 +24,8 @@ const io = new Server(server, {
   cors: { origin: "*" },
 });
 
-const TARGET_HOSPITALS = 4;
-const MAX_ROUNDS = 250;
+const TARGET_HOSPITALS = FL_CONFIG.TARGET_HOSPITALS > 0 ? FL_CONFIG.TARGET_HOSPITALS : 4;
+const MAX_ROUNDS = FL_CONFIG.MAX_ROUNDS > 0 ? FL_CONFIG.MAX_ROUNDS : 250;
 let connectedHospitals = [];
 let evaluatorId = null;
 let receivedUpdates = [];

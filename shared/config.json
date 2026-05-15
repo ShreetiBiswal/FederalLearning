@@ -2,5 +2,7 @@
   "DATASET_NAME": "bloodmnist",
   "NUM_CLASSES": 8,
   "IN_CHANNELS": 3,
-  "IMAGE_SIZE": 28
+  "IMAGE_SIZE": 28,
+  "TARGET_HOSPITALS": 0,
+  "MAX_ROUNDS": 250
 }
